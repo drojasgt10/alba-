@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refugio del Alba</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; min-height: 100vh; display: flex; flex-direction: column; }
+
+        /* ── FRANJA SUPERIOR ── */
+        .franja-superior {
+            background: linear-gradient(135deg, #2C425E 0%, #466995 100%);
+            padding: 18px 28px 20px 28px;
+            color: white;
+            position: relative;
+        }
+        .fila-marca {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .marca-izq {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-circulo {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+        .nombre-residencia {
+            font-family: 'Comfortaa', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .fecha-hoy-franja {
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.85);
+            background: rgba(255,255,255,0.12);
+            padding: 5px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .ultima-sesion {
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 4px;
+        }
+        .saludo-usuario {
+            font-family: 'Comfortaa', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: white;
+        }
+
+        /* Menú hamburguesa */
+        .btn-menu-hamburguesa {
+            background: none; border: none;
+            cursor: pointer;
+            display: flex; flex-direction: column;
+            gap: 5px; padding: 4px;
+            flex-shrink: 0;
+        }
+        .btn-menu-hamburguesa span {
+            display: block; width: 24px; height: 2px;
+            background: white; border-radius: 2px;
+        }
+
+        /* Panel lateral menú */
+        .panel-menu-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4); z-index: 400;
+        }
+        .panel-menu-overlay.visible { display: block; }
+        .panel-menu {
+            position: fixed; top: 0; right: 0; bottom: 0;
+            width: 280px; background: white;
+            z-index: 401; transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex; flex-direction: column;
+            padding: 0;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+        }
+        .panel-menu.abierto { transform: translateX(0); }
+        .panel-menu-cabecera {
+            background: linear-gradient(135deg, #2C425E, #466995);
+            padding: 28px 20px 20px;
+            color: white;
+        }
+        .panel-menu-avatar {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Comfortaa', sans-serif; font-size: 22px;
+            color: white; font-weight: 700; margin-bottom: 10px;
+        }
+        .panel-menu-nombre { font-family: 'Comfortaa', sans-serif; font-size: 16px; font-weight: 700; color: white; }
+        .panel-menu-email { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+        .btn-cerrar-panel-menu {
+            position: absolute; top: 16px; right: 16px;
+            background: none; border: none; color: white;
+            font-size: 22px; cursor: pointer;
+        }
+        .panel-menu-cuerpo { flex: 1; padding: 16px 0; overflow-y: auto; }
+        .panel-menu-item {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 24px; cursor: pointer;
+            transition: background 0.15s; font-weight: 700; font-size: 15px;
+            color: #2C425E; border: none; background: none; width: 100%;
+            text-align: left;
+        }
+        .panel-menu-item:hover { background: #F5F2EB; }
+        .panel-menu-item.cerrar-sesion { color: #DC3545; border-top: 1px solid #F5F2EB; margin-top: 8px; }
+        .panel-menu-item.cambiar { color: #466995; }
+        .panel-menu-icono { font-size: 18px; width: 24px; text-align: center; }
+
+        /* ── CONTENIDO PRINCIPAL ── */
+        .contenido { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 16px; max-width: 700px; width: 100%; margin: 0 auto; }
+
+        /* ── MÓVIL: col-centro oculta ── */
+        .desktop-col-centro { display: none; }
+
+        /* ── DESKTOP 3 COLUMNAS ── */
+        @media (min-width: 900px) {
+            .contenido {
+                max-width: 100%;
+                flex-direction: row !important;
+                align-items: flex-start;
+                gap: 20px;
+                padding: 24px;
+            }
+            .desktop-col-izq {
+                flex: 0 0 280px;
+                display: flex !important;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .desktop-col-centro {
+                flex: 1;
+                display: flex !important;
+                flex-direction: column;
+                gap: 16px;
+            }
+            .desktop-col-der {
+                flex: 0 0 210px;
+                display: flex !important;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .grid-botones {
+                display: flex !important;
+                flex-direction: column;
+                gap: 10px;
+            }
+            .boton-menu { width: 100%; }
+        }
+
+        /* Tarjeta eventos */
+        .tarjeta-eventos {
+            background: white; border-radius: 16px;
+            padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+        }
+        .tarjeta-eventos-titulo {
+            font-family: 'Comfortaa', sans-serif; font-size: 13px;
+            color: #8A9BA8; text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .evento-dia {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 10px 0; border-bottom: 1px solid #F5F2EB;
+        }
+        .evento-dia:last-child { border-bottom: none; padding-bottom: 0; }
+        .evento-numero-dia {
+            background: #2C425E; color: white;
+            border-radius: 10px; padding: 8px 12px;
+            text-align: center; min-width: 48px;
+            flex-shrink: 0;
+        }
+        .evento-numero-dia .num { font-family: 'Comfortaa', sans-serif; font-size: 22px; font-weight: 700; line-height: 1; }
+        .evento-numero-dia .lbl { font-size: 10px; text-transform: uppercase; opacity: 0.8; }
+        .evento-detalle { flex: 1; }
+        .evento-etiqueta { font-size: 11px; font-weight: 700; color: #8A9BA8; text-transform: uppercase; margin-bottom: 4px; }
+        .evento-texto { font-size: 14px; font-weight: 600; color: #2C425E; line-height: 1.5; }
+        .evento-hora { font-size: 12px; color: #466995; font-weight: 700; margin-top: 3px; }
+        .sin-eventos { font-size: 13px; color: #8A9BA8; font-style: italic; padding: 4px 0; }
+        .badge-importante { display: inline-block; background: #FFF0F0; color: #C62828; border-radius: 12px; padding: 2px 8px; font-size: 10px; font-weight: 700; margin-left: 6px; }
+
+        /* ── BOTONES MENÚ ── */
+        .grid-botones {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 12px;
+        }
+        .boton-menu {
+            background: #8A9BA8; color: #2C425E;
+            border: none; border-radius: 14px;
+            padding: 18px 16px; cursor: pointer;
+            font-family: 'Comfortaa', sans-serif;
+            font-weight: 700; font-size: 14px;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            transition: background 0.2s, transform 0.1s;
+            text-align: left; display: flex; align-items: center; gap: 10px;
+        }
+        .boton-menu:active { transform: scale(0.98); background: #7A8B98; }
+        .boton-menu .icono-btn { font-size: 20px; }
+        /* Calendario ocupa solo col1 */
+        .btn-calendario { grid-column: 1; grid-row: 1; }
+        /* Recepciones ocupa solo col2 */
+        .btn-recepciones { grid-column: 2; grid-row: 1; }
+        /* Reporte ocupa solo col1 */
+        .btn-reporte { grid-column: 1; grid-row: 2; }
+        /* Residentes ocupa solo col2 */
+        .btn-residentes { grid-column: 2; grid-row: 2; }
+        /* Pedidos ocupa col1 */
+        .btn-pedidos { grid-column: 1; grid-row: 3; }
+        /* Signos vitales ocupa col2 */
+        .btn-signos { grid-column: 2; grid-row: 3; }
+        .boton-menu.proximamente { cursor: default; }
+
+        @media (max-width: 600px) {
+            .franja-superior { padding: 14px 16px 18px 16px; }
+            .nombre-residencia { font-size: 14px; }
+            .logo-circulo { width: 34px; height: 34px; font-size: 18px; }
+            .fecha-hoy-franja { font-size: 11px; padding: 4px 8px; }
+            .saludo-usuario { font-size: 18px; }
+            .contenido { padding: 14px; gap: 12px; }
+            .boton-menu { font-size: 12px; padding: 14px 12px; }
+            .boton-menu .icono-btn { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Panel menú lateral -->
+<div class="panel-menu-overlay" id="overlay-menu" onclick="cerrarMenu()"></div>
+<div class="panel-menu" id="panel-menu">
+    <div class="panel-menu-cabecera">
+        <button class="btn-cerrar-panel-menu" onclick="cerrarMenu()">✕</button>
+        <div class="panel-menu-avatar" id="pm-avatar"></div>
+        <div class="panel-menu-nombre" id="pm-nombre">Cargando...</div>
+        <div class="panel-menu-email" id="pm-email"></div>
+    </div>
+    <div class="panel-menu-cuerpo">
+        <button class="panel-menu-item" onclick="mostrarConfigCuenta()">
+            <span class="panel-menu-icono">⚙️</span> Configurar cuenta
+        </button>
+        <button class="panel-menu-item cambiar" onclick="cambiarUsuario()">
+            <span class="panel-menu-icono">🔄</span> Cambiar usuario
+        </button>
+        <button class="panel-menu-item cerrar-sesion" onclick="cerrarSesion()">
+            <span class="panel-menu-icono">🚪</span> Cerrar sesión
+        </button>
+    </div>
+
+    <!-- Modal configurar cuenta -->
+    <div class="modal-config-overlay" id="modal-config" style="display:none; position:fixed; inset:0; background:rgba(44,66,94,0.5); z-index:500; align-items:center; justify-content:center; padding:20px;">
+        <div style="background:white; border-radius:20px; padding:28px; max-width:380px; width:100%; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+            <h3 style="font-family:Comfortaa,sans-serif; color:#2C425E; margin:0 0 20px 0;">⚙️ Configurar Cuenta</h3>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#8A9BA8; text-transform:uppercase; display:block; margin-bottom:5px;">Nombre completo</label>
+                    <input type="text" id="config-nombre" style="width:100%; padding:11px 14px; border:1.5px solid #E1D7C6; border-radius:10px; font-family:Quicksand,sans-serif; font-size:15px; color:#2C425E; background:#FDFBF7; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:700; color:#8A9BA8; text-transform:uppercase; display:block; margin-bottom:5px;">Teléfono</label>
+                    <input type="tel" id="config-telefono" style="width:100%; padding:11px 14px; border:1.5px solid #E1D7C6; border-radius:10px; font-family:Quicksand,sans-serif; font-size:15px; color:#2C425E; background:#FDFBF7; box-sizing:border-box;" placeholder="+51 999 999 999">
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="cerrarConfig()" style="flex:1; padding:11px; border-radius:10px; border:2px solid #466995; background:white; color:#466995; font-family:Quicksand,sans-serif; font-weight:700; cursor:pointer;">Cancelar</button>
+                <button onclick="guardarConfig()" style="flex:1; padding:11px; border-radius:10px; border:none; background:#2C425E; color:white; font-family:Quicksand,sans-serif; font-weight:700; cursor:pointer;">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Franja superior -->
+<div class="franja-superior">
+    <div class="fila-marca">
+        <div class="marca-izq">
+            <div class="logo-circulo">🌸</div>
+            <div class="nombre-residencia">Residencia Geriátrica<br>Refugio del Alba</div>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+            <div class="fecha-hoy-franja" id="fecha-hoy-franja"></div>
+            <button class="btn-menu-hamburguesa" onclick="abrirMenu()">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+    <div class="ultima-sesion" id="ultima-sesion">Última sesión: —</div>
+    <div class="saludo-usuario" id="saludo-usuario">Hola 👋</div>
+</div>
+
+<!-- Contenido -->
+<div class="contenido">
+
+    <!-- COL IZQUIERDA (desktop) / arriba (móvil) -->
+    <div class="desktop-col-izq col-izq">
+
+        <!-- Tarjeta eventos -->
+        <div class="tarjeta-eventos">
+            <div class="tarjeta-eventos-titulo">📅 Eventos</div>
+            <div id="eventos-container"><div class="sin-eventos">Cargando eventos...</div></div>
+        </div>
+
+        <!-- Tarjeta stock -->
+        <div class="tarjeta-eventos" id="tarjeta-stock">
+            <div class="tarjeta-eventos-titulo">⚠️ Stock por acabarse</div>
+            <div id="stock-container"><div class="sin-eventos">Cargando stock...</div></div>
+            <button onclick="alert('Próximamente')" style="margin-top:12px; width:100%; padding:10px; background:#D6EEF8; color:#2C425E; border:none; border-radius:10px; font-family:Quicksand,sans-serif; font-weight:700; cursor:pointer; font-size:13px;">📲 Ir a Pedidos</button>
+        </div>
+
+    </div>
+
+    <!-- COL CENTRO (desktop) -->
+    <div class="desktop-col-centro col-centro">
+
+        <!-- Kardex -->
+        <div class="tarjeta-eventos" style="flex:1;">
+            <div class="tarjeta-eventos-titulo">💊 Kárdex del Residente</div>
+            <!-- Selector de residente -->
+            <div id="kardex-selector-wrap" style="overflow-x:auto; white-space:nowrap; padding-bottom:8px; margin-bottom:12px; border-bottom:1px solid #F5F2EB;">
+                <div id="kardex-selector" style="display:inline-flex; gap:8px;">
+                    <div class="sin-eventos">Cargando residentes...</div>
+                </div>
+            </div>
+            <div id="kardex-contenido"><div class="sin-eventos">Selecciona un residente</div></div>
+        </div>
+
+    </div>
+
+    <!-- COL DERECHA (desktop) / abajo (móvil) -->
+    <div class="desktop-col-der col-der">
+        <div class="grid-botones">
+            <button class="boton-menu btn-calendario" onclick="window.location.href='calendario.html'">
+                <span class="icono-btn">📅</span> Calendario
+            </button>
+            <button class="boton-menu btn-recepciones" onclick="window.location.href='recepciones.html'">
+                <span class="icono-btn">📦</span> Recepciones
+            </button>
+            <button class="boton-menu btn-reporte" onclick="window.location.href='reporte.html'">
+                <span class="icono-btn">📋</span> Reporte Diario
+            </button>
+            <button class="boton-menu btn-residentes" onclick="window.location.href='residentes.html'">
+                <span class="icono-btn">👴👵</span> Residentes
+            </button>
+            <button class="boton-menu btn-pedidos proximamente" onclick="alert('Próximamente')">
+                <span class="icono-btn">📲</span> Pedidos
+            </button>
+            <button class="boton-menu btn-signos proximamente" onclick="alert('Próximamente')">
+                <span class="icono-btn">❤️</span> Signos Vitales
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const SUPABASE_URL = "https://xdalimxqwymjbxjlipts.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g";
+    const cliente = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+
+    async function mostrarConfigCuenta() {
+        cerrarMenu();
+        const { data: { session } } = await cliente.auth.getSession();
+        if (!session) return;
+        const { data: perfil } = await cliente.from('perfiles').select('nombre, telefono').eq('id', session.user.id).single();
+        document.getElementById('config-nombre').value = perfil?.nombre || '';
+        document.getElementById('config-telefono').value = perfil?.telefono || '';
+        const modal = document.getElementById('modal-config');
+        modal.style.display = 'flex';
+    }
+
+    function cerrarConfig() {
+        document.getElementById('modal-config').style.display = 'none';
+    }
+
+    async function guardarConfig() {
+        const nombre = document.getElementById('config-nombre').value.trim();
+        const telefono = document.getElementById('config-telefono').value.trim();
+        if (!nombre) return alert('Escribe tu nombre');
+        const { data: { session } } = await cliente.auth.getSession();
+        await cliente.from('perfiles').upsert({ id: session.user.id, nombre, telefono, email: session.user.email });
+        localStorage.setItem('ra_usuario_nombre', nombre);
+        document.getElementById('saludo-usuario').innerText = `Hola, ${nombre.split(' ')[0]} 👋`;
+        document.getElementById('pm-nombre').innerText = nombre;
+        document.getElementById('pm-avatar').innerText = nombre.charAt(0).toUpperCase();
+        cerrarConfig();
+        alert('¡Datos guardados correctamente!');
+    }
+
+    async function init() {
+        // ✅ Verificar sesión
+        const { data: { session } } = await cliente.auth.getSession();
+        if (!session) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        const user = session.user;
+        const email = user.email;
+
+        // Fecha de hoy
+        const hoy = new Date();
+        const fechaStr = `${diasSemana[hoy.getDay()]} ${hoy.getDate()} de ${meses[hoy.getMonth()]}`;
+        document.getElementById('fecha-hoy-franja').innerText = fechaStr;
+
+        // Última sesión
+        const ultimaSesion = user.last_sign_in_at
+            ? new Date(user.last_sign_in_at).toLocaleString('es-ES', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+            : '—';
+        document.getElementById('ultima-sesion').innerText = `Última sesión: ${ultimaSesion}`;
+
+        // Nombre del usuario desde perfil o localStorage
+        let nombre = localStorage.getItem('ra_usuario_nombre') || '';
+        if (!nombre) {
+            const { data: perfil } = await cliente.from('perfiles').select('nombre').eq('id', user.id).single();
+            nombre = perfil?.nombre || email;
+            localStorage.setItem('ra_usuario_nombre', nombre);
+            localStorage.setItem('ra_usuario_email', email);
+        }
+
+        const nombreCorto = (nombre && !nombre.includes('@')) ? nombre.split(' ')[0] : 'equipo';
+        document.getElementById('saludo-usuario').innerText = `Hola, ${nombreCorto} 👋`;
+
+        // Panel menú
+        document.getElementById('pm-nombre').innerText = nombre;
+        document.getElementById('pm-email').innerText = email;
+        document.getElementById('pm-avatar').innerText = nombre.charAt(0).toUpperCase();
+
+        // Cargar eventos, kardex y stock
+        cargarEventos(hoy);
+        cargarStock();
+        cargarKardex();
+    }
+
+    async function cargarKardex() {
+        if (window.innerWidth < 900) return;
+        // Load residents for selector
+        const { data: residentes } = await cliente.from('residentes').select('id, nombre_completo, apodo').order('piso');
+        const selector = document.getElementById('kardex-selector');
+        if (!residentes || residentes.length === 0) return;
+        selector.innerHTML = '';
+        residentes.forEach((r, i) => {
+            const btn = document.createElement('button');
+            btn.style.cssText = 'padding:6px 14px; border-radius:20px; border:1.5px solid #C8D8E8; background:white; color:#2C425E; font-family:Quicksand,sans-serif; font-weight:700; font-size:12px; cursor:pointer; white-space:nowrap; flex-shrink:0;';
+            btn.innerText = r.apodo || r.nombre_completo.split(' ')[0];
+            btn.onclick = () => {
+                selector.querySelectorAll('button').forEach(b => { b.style.background = 'white'; b.style.color = '#2C425E'; });
+                btn.style.background = '#2C425E'; btn.style.color = 'white';
+                mostrarKardex(r.id, r.nombre_completo);
+            };
+            selector.appendChild(btn);
+            if (i === 0) { btn.click(); }
+        });
+    }
+
+    async function mostrarKardex(id, nombre) {
+        const cont = document.getElementById('kardex-contenido');
+        cont.innerHTML = '<div class="sin-eventos">Cargando...</div>';
+        const { data } = await cliente.from('medicamentos_residente')
+            .select('gramos, unidad, dosis, horarios, catalogo_maestro_medicamentos(nombre_medicamento)')
+            .eq('residente_id', id);
+        if (!data || data.length === 0) { cont.innerHTML = '<div class="sin-eventos">Sin medicamentos registrados</div>'; return; }
+        cont.innerHTML = data.map(m => `
+            <div style="padding:8px 0; border-bottom:1px solid #F5F2EB; font-size:13px;">
+                <div style="font-weight:700; color:#2C425E;">💊 ${m.catalogo_maestro_medicamentos?.nombre_medicamento || '—'} ${m.gramos || ''} ${m.unidad || ''}</div>
+                <div style="color:#466995; font-size:12px; margin-top:2px;">Dosis: ${m.dosis || '—'} tab. · Horario: ${m.horarios || '—'}</div>
+            </div>`).join('');
+    }
+
+    async function cargarStock() {
+        const cont = document.getElementById('stock-container');
+        // Check medicamentos_residente for items with low stock
+        // Using numero_de_tabletas_mensuales as reference
+        const { data } = await cliente.from('recepcion_medicamentos_v2')
+            .select('nombre_medicamento, cantidad_recepcionada, fecha_recepcion, nombre_residente')
+            .order('fecha_recepcion', { ascending: false });
+        
+        if (!data || data.length === 0) { cont.innerHTML = '<div class="sin-eventos">Sin datos de stock</div>'; return; }
+        
+        // Group by resident+med, sum quantities, estimate days remaining
+        const hoy = new Date();
+        const agrupado = {};
+        data.forEach(r => {
+            const key = r.nombre_residente + '|' + r.nombre_medicamento;
+            if (!agrupado[key]) agrupado[key] = { nombre: r.nombre_medicamento, residente: r.nombre_residente, total: 0, ultima: r.fecha_recepcion };
+            agrupado[key].total += (r.cantidad_recepcionada || 0);
+        });
+
+        // Show items with less than 5 days of stock (approx 1 pill/day)
+        const porAcabar = Object.values(agrupado).filter(i => i.total <= 5 && i.total > 0);
+        
+        if (porAcabar.length === 0) {
+            cont.innerHTML = '<div class="sin-eventos" style="color:#28a745;">✅ Todo en orden</div>';
+            return;
+        }
+        cont.innerHTML = porAcabar.map(i => `
+            <div style="padding:6px 0; border-bottom:1px solid #F5F2EB; font-size:13px;">
+                <div style="font-weight:700; color:#C62828;">⚠️ ${i.nombre}</div>
+                <div style="color:#466995; font-size:12px;">${i.residente} · ${i.total} unid. restantes</div>
+            </div>`).join('');
+    }
+
+    async function cargarEventos(hoy) {    async function cargarEventos(hoy) {
+        const fechaHoy = hoy.toISOString().split('T')[0];
+        const manana = new Date(hoy);
+        manana.setDate(manana.getDate() + 1);
+        const fechaManana = manana.toISOString().split('T')[0];
+
+        const { data } = await cliente.from('calendario').select('*').in('fecha', [fechaHoy, fechaManana]);
+
+        const eventosHoy = (data || []).filter(e => e.fecha === fechaHoy);
+        const eventosManana = (data || []).filter(e => e.fecha === fechaManana && e.estado === 'Importante');
+
+        const cont = document.getElementById('eventos-container');
+        cont.innerHTML = '';
+
+        // Eventos de hoy
+        const bloqueHoy = document.createElement('div');
+        bloqueHoy.className = 'evento-dia';
+        const numHoy = document.createElement('div');
+        numHoy.className = 'evento-numero-dia';
+        numHoy.innerHTML = `<div class="num">${hoy.getDate()}</div><div class="lbl">Hoy</div>`;
+        const detHoy = document.createElement('div');
+        detHoy.className = 'evento-detalle';
+        detHoy.innerHTML = `<div class="evento-etiqueta">Eventos de hoy</div>`;
+        if (eventosHoy.length === 0) {
+            detHoy.innerHTML += `<div class="sin-eventos">Sin eventos hoy</div>`;
+        } else {
+            eventosHoy.forEach(ev => {
+                const imp = ev.estado === 'Importante' ? '<span class="badge-importante">⚠️ Importante</span>' : '';
+                detHoy.innerHTML += `<div class="evento-texto">${ev.evento}${imp}</div>${ev.hora ? `<div class="evento-hora">🕐 ${ev.hora}</div>` : ''}`;
+            });
+        }
+        bloqueHoy.appendChild(numHoy);
+        bloqueHoy.appendChild(detHoy);
+        cont.appendChild(bloqueHoy);
+
+        // Eventos importantes de mañana
+        if (eventosManana.length > 0) {
+            const bloqueManana = document.createElement('div');
+            bloqueManana.className = 'evento-dia';
+            const numMan = document.createElement('div');
+            numMan.className = 'evento-numero-dia';
+            numMan.style.background = '#8B0000';
+            numMan.innerHTML = `<div class="num">${manana.getDate()}</div><div class="lbl">Mañana</div>`;
+            const detMan = document.createElement('div');
+            detMan.className = 'evento-detalle';
+            detMan.innerHTML = `<div class="evento-etiqueta">⚠️ Importante mañana</div>`;
+            eventosManana.forEach(ev => {
+                detMan.innerHTML += `<div class="evento-texto">${ev.evento}</div>${ev.hora ? `<div class="evento-hora">🕐 ${ev.hora}</div>` : ''}`;
+            });
+            bloqueManana.appendChild(numMan);
+            bloqueManana.appendChild(detMan);
+            cont.appendChild(bloqueManana);
+        }
+    }
+
+    function abrirMenu() {
+        document.getElementById('panel-menu').classList.add('abierto');
+        document.getElementById('overlay-menu').classList.add('visible');
+    }
+
+    function cerrarMenu() {
+        document.getElementById('panel-menu').classList.remove('abierto');
+        document.getElementById('overlay-menu').classList.remove('visible');
+    }
+
+    async function cerrarSesion() {
+        await cliente.auth.signOut();
+        localStorage.removeItem('ra_usuario_nombre');
+        localStorage.removeItem('ra_usuario_email');
+        window.location.href = 'login.html';
+    }
+
+    function cambiarUsuario() {
+        localStorage.removeItem('ra_usuario_nombre');
+        localStorage.removeItem('ra_usuario_email');
+        cerrarSesion();
+    }
+
+    init();
+</script>
+</body>
+</html>
