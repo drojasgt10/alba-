@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventos Médicos - Refugio del Alba</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; display: flex; flex-direction: column; min-height: 100vh; }
+        .barra-superior { background-color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .texto-izquierda-superior { font-family: 'Comfortaa', sans-serif; font-size: 20px; font-weight: 700; color: #2C425E; }
+        .grupo-botones-barra { display: flex; gap: 12px; align-items: center; }
+        .boton-regresar { background-color: white; color: #466995; border: 2px solid #466995; padding: 9px 18px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+        .boton-menu-principal { background-color: #466995; color: white; border: none; padding: 11px 18px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+        .contenedor-principal { padding: 20px; display: flex; flex-direction: column; gap: 20px; max-width: 1200px; width: 100%; box-sizing: border-box; margin: 0 auto; }
+        .bloque-blanco { background-color: white; border-radius: 20px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); box-sizing: border-box; }
+        .subtitulo-bloque { font-family: 'Comfortaa', sans-serif; font-size: 16px; color: #466995; margin: 0 0 20px 0; border-bottom: 2px solid #F5F2EB; padding-bottom: 8px; text-transform: uppercase; }
+        .formulario-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .col-completa { grid-column: span 2; }
+        .grupo-input { display: flex; flex-direction: column; gap: 6px; }
+        .etiqueta-fija { font-weight: 700; color: #8A9BA8; text-transform: uppercase; font-size: 12px; }
+        .caja-input { padding: 12px; border: 1px solid #E1D7C6; border-radius: 10px; font-family: 'Quicksand', sans-serif; font-size: 14px; background-color: #FDFBF7; color: #2C425E; box-sizing: border-box; width: 100%; }
+        .caja-input:focus { outline: none; border-color: #466995; }
+        textarea.caja-input { resize: vertical; height: 80px; }
+        .fila-fechas-semaforo { display: flex; gap: 20px; align-items: flex-end; }
+        .contenedor-semaforos-vista { display: flex; gap: 15px; padding-bottom: 12px; }
+        .badge-estado { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
+        .bolita { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .bolita-amarilla { background-color: #FFC107; }
+        .bolita-morada { background-color: #6F42C1; }
+        .bolita-roja { background-color: #DC3545; }
+        .boton-guardar { background-color: #2C425E; color: white; border: none; padding: 14px 25px; border-radius: 10px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 14px; text-transform: uppercase; cursor: pointer; width: 100%; margin-top: 10px; }
+        .contenedor-tabla-historial { display: flex; flex-direction: column; }
+        .fila-historial { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid #E1D7C6; gap: 30px; }
+        .fila-historial:last-child { border-bottom: none; }
+        .bloque-datos-clinicos { flex: 3; font-size: 14px; font-weight: 600; line-height: 1.6; }
+        .bloque-estado-derecha { flex: 1; display: flex; justify-content: flex-end; }
+        .resaltado-dato { font-weight: 700; color: #2C425E; }
+        .sin-datos { color: #8A9BA8; font-style: italic; text-align: center; padding: 40px 0; font-size: 15px; }
+        @media (max-width: 768px) {
+            .barra-superior { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+            .texto-izquierda-superior { font-size: 14px; width: 100%; }
+            .grupo-botones-barra { width: 100%; justify-content: flex-end; }
+            .boton-regresar, .boton-menu-principal { padding: 7px 10px; font-size: 11px; }
+            .contenedor-principal { padding: 12px; gap: 12px; }
+            .bloque-blanco { padding: 16px; border-radius: 14px; }
+            .formulario-grid { grid-template-columns: 1fr; gap: 14px; }
+            .col-completa { grid-column: span 1; }
+            .fila-fechas-semaforo { flex-direction: column; align-items: stretch; gap: 12px; }
+            .fila-historial { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .bloque-estado-derecha { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="barra-superior">
+        <div class="texto-izquierda-superior" id="titulo-pantalla-nombre">Eventos Médicos</div>
+        <div class="grupo-botones-barra">
+            <button class="boton-regresar" onclick="window.location.href='residentes.html'">← Fichas Residentes</button>
+            <button class="boton-menu-principal" onclick="window.location.href='index.html'">Menú Principal</button>
+        </div>
+    </div>
+
+    <div class="contenedor-principal">
+        <div class="bloque-blanco">
+            <h2 class="subtitulo-bloque">Registrar Evento Médico</h2>
+            <div class="formulario-grid">
+                <div class="grupo-input">
+                    <span class="etiqueta-fija">Tipo de Evento:</span>
+                    <select id="tipo-evento" class="caja-input" onchange="evaluarTipoEvento(this.value)">
+                        <option value="Cambio de receta">Cambio de receta</option>
+                        <option value="Tratamiento temporal">Tratamiento temporal</option>
+                        <option value="Tratamiento permanente">Tratamiento permanente</option>
+                        <option value="Emergencia medica">Emergencia médica</option>
+                        <option value="Otro">Otro (Escribir abajo)</option>
+                    </select>
+                </div>
+                <div class="grupo-input" id="contenedor-otro-tipo" style="display:none;">
+                    <span class="etiqueta-fija">Escriba el tipo de evento:</span>
+                    <input type="text" id="input-otro-tipo" class="caja-input" placeholder="Ej: Control PADOMI">
+                </div>
+                <div class="grupo-input col-completa">
+                    <span class="etiqueta-fija">Motivo de Diagnóstico:</span>
+                    <textarea id="motivo-diagnostico" class="caja-input" placeholder="Escriba el diagnóstico o motivo médico..."></textarea>
+                </div>
+                <div class="grupo-input col-completa">
+                    <span class="etiqueta-fija">Nueva Instrucción:</span>
+                    <textarea id="nueva-instruccion" class="caja-input" placeholder="Escriba las indicaciones médicas exactas..."></textarea>
+                </div>
+                <div class="col-completa fila-fechas-semaforo">
+                    <div class="grupo-input" style="flex:1;">
+                        <span class="etiqueta-fija">Fecha de Inicio:</span>
+                        <input type="date" id="fecha-inicio" class="caja-input" onchange="calcularSemaforosVista()">
+                    </div>
+                    <div class="grupo-input" style="flex:1;" id="contenedor-fecha-fin">
+                        <span class="etiqueta-fija">Fecha Fin:</span>
+                        <input type="date" id="fecha-fin" class="caja-input" onchange="calcularSemaforosVista()">
+                    </div>
+                    <div class="contenedor-semaforos-vista" id="visualizador-badge"></div>
+                </div>
+                <button class="boton-guardar col-completa" onclick="guardar()">Registrar Evento Clínico</button>
+            </div>
+        </div>
+        <div class="bloque-blanco">
+            <h2 class="subtitulo-bloque">Historial Clínico del Residente</h2>
+            <div class="contenedor-tabla-historial" id="tabla-historial"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://xdalimxqwymjbxjlipts.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g";
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const params = new URLSearchParams(window.location.search);
+        // ✅ Ahora lee el ?id= directamente, sin buscar por nombre
+        const residenteId = params.get('id') || null;
+        const nombreResidente = params.get('nombre') || '';
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            document.getElementById('titulo-pantalla-nombre').innerText = nombreResidente
+                ? `Eventos Médicos: ${nombreResidente}`
+                : 'Eventos Médicos';
+            document.getElementById('fecha-inicio').value = new Date().toISOString().split('T')[0];
+            calcularSemaforosVista();
+
+            if (residenteId) {
+                cargarHistorial();
+            } else {
+                document.getElementById('tabla-historial').innerHTML = '<div class="sin-datos">No hay residente seleccionado. Vuelve a Fichas de Residentes y selecciona uno.</div>';
+            }
+        });
+
+        function evaluarTipoEvento(valor) {
+            document.getElementById('contenedor-otro-tipo').style.display = valor === 'Otro' ? 'flex' : 'none';
+            const inputFin = document.getElementById('fecha-fin');
+            const contFin = document.getElementById('contenedor-fecha-fin');
+            if (valor === 'Tratamiento permanente') {
+                inputFin.value = ''; inputFin.disabled = true; contFin.style.opacity = '0.4';
+            } else {
+                inputFin.disabled = false; contFin.style.opacity = '1';
+            }
+            calcularSemaforosVista();
+        }
+
+        function calcularSemaforosVista() {
+            const tipo = document.getElementById('tipo-evento').value;
+            const fInicio = document.getElementById('fecha-inicio').value;
+            const fFin = document.getElementById('fecha-fin').value;
+            const badge = document.getElementById('visualizador-badge');
+            const hoy = new Date(); hoy.setHours(0,0,0,0);
+            if (tipo === 'Tratamiento permanente') { badge.innerHTML = `<div class="badge-estado"><span class="bolita bolita-morada"></span> <span style="color:#6F42C1;">Permanente</span></div>`; return; }
+            if (!fInicio) { badge.innerHTML = ''; return; }
+            const ini = new Date(fInicio);
+            if (fFin) {
+                const fin = new Date(fFin);
+                badge.innerHTML = (hoy >= ini && hoy <= fin)
+                    ? `<div class="badge-estado"><span class="bolita bolita-amarilla"></span> <span style="color:#FFC107;">Activo</span></div>`
+                    : `<div class="badge-estado"><span class="bolita bolita-roja"></span> <span style="color:#DC3545;">Inactivo</span></div>`;
+            } else {
+                badge.innerHTML = hoy >= ini ? `<div class="badge-estado"><span class="bolita bolita-amarilla"></span> <span style="color:#FFC107;">Activo</span></div>` : '';
+            }
+        }
+
+        function formatFecha(f) {
+            if (!f) return '';
+            const p = f.split('-');
+            return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : f;
+        }
+
+        async function cargarHistorial() {
+            const tabla = document.getElementById('tabla-historial');
+            tabla.innerHTML = '<div class="sin-datos">Cargando...</div>';
+
+            const { data, error } = await sb
+                .from('eventos_cambios_medicos')
+                .select('*')
+                .eq('residente_id', residenteId)
+                .order('fecha_inicio', { ascending: false });
+
+            if (error) {
+                tabla.innerHTML = `<div class="sin-datos" style="color:#DC3545;">Error al cargar: ${error.message}</div>`;
+                return;
+            }
+            if (!data || data.length === 0) {
+                tabla.innerHTML = '<div class="sin-datos">No hay eventos registrados para este residente.</div>';
+                return;
+            }
+
+            const hoy = new Date(); hoy.setHours(0,0,0,0);
+            tabla.innerHTML = '';
+            data.forEach(ev => {
+                let estado = 'Activo';
+                if (ev.tipo_evento === 'Tratamiento permanente') estado = 'Permanente';
+                else if (ev.fecha_fin && hoy > new Date(ev.fecha_fin)) estado = 'Inactivo';
+
+                let badge = estado === 'Permanente'
+                    ? `<div class="badge-estado"><span class="bolita bolita-morada"></span> <span style="color:#6F42C1;">Permanente</span></div>`
+                    : estado === 'Activo'
+                    ? `<div class="badge-estado"><span class="bolita bolita-amarilla"></span> <span style="color:#FFC107;">Activo</span></div>`
+                    : `<div class="badge-estado"><span class="bolita bolita-roja"></span> <span style="color:#DC3545;">Inactivo</span></div>`;
+
+                tabla.innerHTML += `
+                    <div class="fila-historial">
+                        <div class="bloque-datos-clinicos">
+                            <span style="color:#466995; text-transform:uppercase; font-size:13px; font-weight:700;">${ev.tipo_evento}</span><br>
+                            <span class="etiqueta-fija">INICIO:</span> <span class="resaltado-dato">${formatFecha(ev.fecha_inicio)}</span>
+                            ${ev.fecha_fin ? ` | <span class="etiqueta-fija">FIN:</span> <span class="resaltado-dato">${formatFecha(ev.fecha_fin)}</span>` : ''} |
+                            <span class="etiqueta-fija">MOTIVO:</span> <span class="resaltado-dato">${ev.motivo_diagnostico}</span><br>
+                            <span class="etiqueta-fija">INSTRUCCIÓN:</span> <span>${ev.nueva_instruccion}</span>
+                        </div>
+                        <div class="bloque-estado-derecha">${badge}</div>
+                    </div>`;
+            });
+        }
+
+        async function guardar() {
+            let tipo = document.getElementById('tipo-evento').value;
+            const motivo = document.getElementById('motivo-diagnostico').value.trim();
+            const instruccion = document.getElementById('nueva-instruccion').value.trim();
+            const fInicio = document.getElementById('fecha-inicio').value;
+            const fFin = document.getElementById('fecha-fin').value;
+
+            if (tipo === 'Otro') tipo = document.getElementById('input-otro-tipo').value.trim() || 'Otro';
+            if (!motivo || !instruccion || !fInicio) { alert('Complete Motivo, Instrucción y Fecha de Inicio.'); return; }
+            if (!residenteId) { alert('No se identificó el residente. Vuelve a Fichas de Residentes y selecciona uno.'); return; }
+
+            const { error } = await sb.from('eventos_cambios_medicos').insert([{
+                residente_id: residenteId,
+                tipo_evento: tipo,
+                motivo_diagnostico: motivo,
+                nueva_instruccion: instruccion,
+                fecha_inicio: fInicio,
+                fecha_fin: fFin || null
+            }]);
+
+            if (error) { alert('Error al guardar: ' + error.message); return; }
+
+            document.getElementById('motivo-diagnostico').value = '';
+            document.getElementById('nueva-instruccion').value = '';
+            document.getElementById('fecha-fin').value = '';
+            alert('Evento médico guardado correctamente.');
+            cargarHistorial();
+        }
+    </script>
+</body>
+</html>

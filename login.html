@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refugio del Alba - Acceso</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+        .login-wrap { width: 100%; max-width: 420px; padding: 20px; }
+
+        .logo-cabecera { text-align: center; margin-bottom: 32px; }
+        .logo-titulo { font-family: 'Comfortaa', sans-serif; font-size: 26px; font-weight: 700; color: #2C425E; margin: 0; }
+        .logo-subtitulo { font-size: 14px; color: #8A9BA8; margin-top: 6px; }
+
+        .tarjeta { background: white; border-radius: 20px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+
+        .tab-titulo { font-family: 'Comfortaa', sans-serif; font-size: 18px; color: #2C425E; margin: 0 0 24px 0; text-align: center; }
+
+        .grupo-input { display: flex; flex-direction: column; gap: 5px; margin-bottom: 16px; }
+        .etiqueta { font-size: 12px; font-weight: 700; color: #8A9BA8; text-transform: uppercase; letter-spacing: 0.5px; }
+        .input-campo { padding: 12px 14px; border: 1.5px solid #E1D7C6; border-radius: 10px; font-family: 'Quicksand', sans-serif; font-size: 16px; color: #2C425E; background: #FDFBF7; outline: none; transition: border 0.2s; width: 100%; }
+        .input-campo:focus { border-color: #466995; background: white; }
+
+        .usuario-guardado-wrap { display: flex; align-items: center; gap: 10px; background: #EEF4F9; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; }
+        .usuario-guardado-avatar { width: 38px; height: 38px; border-radius: 50%; background: #466995; color: white; display: flex; align-items: center; justify-content: center; font-family: 'Comfortaa', sans-serif; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+        .usuario-guardado-nombre { font-weight: 700; font-size: 15px; color: #2C425E; flex: 1; }
+        .btn-cambiar { background: none; border: none; color: #8A9BA8; font-family: 'Quicksand', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; text-decoration: underline; padding: 0; white-space: nowrap; }
+
+        .btn-principal { width: 100%; padding: 14px; background: #2C425E; color: white; border: none; border-radius: 12px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 15px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; transition: background 0.2s; }
+        .btn-principal:hover { background: #466995; }
+        .btn-principal:disabled { background: #B0BEC5; cursor: not-allowed; }
+
+        .separador { display: flex; align-items: center; gap: 10px; margin: 20px 0; }
+        .separador-linea { flex: 1; height: 1px; background: #E1D7C6; }
+        .separador-texto { font-size: 12px; color: #8A9BA8; font-weight: 700; }
+
+        .btn-secundario { width: 100%; padding: 12px; background: white; color: #466995; border: 2px solid #466995; border-radius: 12px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; text-transform: uppercase; transition: all 0.2s; }
+        .btn-secundario:hover { background: #EEF4F9; }
+
+        .mensaje-error { background: #FFF0F0; border: 1px solid #FFCDD2; border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #C62828; font-weight: 600; margin-bottom: 14px; display: none; }
+        .mensaje-exito { background: #F0FFF4; border: 1px solid #A8DDB5; border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #1B5E20; font-weight: 600; margin-bottom: 14px; display: none; }
+
+        .hint-contrasena { font-size: 11px; color: #8A9BA8; margin-top: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+    <div class="logo-cabecera">
+        <h1 class="logo-titulo">🌸 Refugio del Alba</h1>
+        <p class="logo-subtitulo">Sistema de Gestión</p>
+    </div>
+
+    <!-- VISTA: Login con usuario guardado -->
+    <div class="tarjeta" id="vista-login-guardado" style="display:none;">
+        <h2 class="tab-titulo">Bienvenido</h2>
+        <div id="mensaje-error-guardado" class="mensaje-error"></div>
+        <div class="usuario-guardado-wrap">
+            <div class="usuario-guardado-avatar" id="avatar-inicial"></div>
+            <div class="usuario-guardado-nombre" id="nombre-guardado-display"></div>
+            <button class="btn-cambiar" onclick="mostrarCambiarUsuario()">Cambiar</button>
+        </div>
+        <div class="grupo-input">
+            <label class="etiqueta">Contraseña</label>
+            <input type="password" id="contrasena-guardado" class="input-campo" placeholder="••••••" maxlength="6" onkeydown="if(event.key==='Enter') entrarConUsuarioGuardado()">
+            <span class="hint-contrasena">6 caracteres</span>
+        </div>
+        <button class="btn-principal" onclick="entrarConUsuarioGuardado()">Entrar</button>
+        <div class="separador"><div class="separador-linea"></div><span class="separador-texto">o</span><div class="separador-linea"></div></div>
+        <button class="btn-secundario" onclick="mostrarCrearCuenta()">Crear nueva cuenta</button>
+    </div>
+
+    <!-- VISTA: Login sin usuario guardado -->
+    <div class="tarjeta" id="vista-login-normal" style="display:none;">
+        <h2 class="tab-titulo">Iniciar Sesión</h2>
+        <div id="mensaje-error-normal" class="mensaje-error"></div>
+        <div class="grupo-input">
+            <label class="etiqueta">Email</label>
+            <input type="email" id="email-login" class="input-campo" placeholder="tucorreo@email.com">
+        </div>
+        <div class="grupo-input">
+            <label class="etiqueta">Contraseña</label>
+            <input type="password" id="contrasena-login" class="input-campo" placeholder="••••••" maxlength="6" onkeydown="if(event.key==='Enter') entrar()">
+            <span class="hint-contrasena">6 caracteres</span>
+        </div>
+        <button class="btn-principal" onclick="entrar()">Entrar</button>
+        <div class="separador"><div class="separador-linea"></div><span class="separador-texto">o</span><div class="separador-linea"></div></div>
+        <button class="btn-secundario" onclick="mostrarCrearCuenta()">Crear nueva cuenta</button>
+    </div>
+
+    <!-- VISTA: Crear cuenta -->
+    <div class="tarjeta" id="vista-crear" style="display:none;">
+        <h2 class="tab-titulo">Crear Cuenta</h2>
+        <div id="mensaje-error-crear" class="mensaje-error"></div>
+        <div id="mensaje-exito-crear" class="mensaje-exito"></div>
+        <div class="grupo-input">
+            <label class="etiqueta">Tu nombre completo</label>
+            <input type="text" id="nombre-nuevo" class="input-campo" placeholder="Ej: Maria Lopez">
+        </div>
+        <div class="grupo-input">
+            <label class="etiqueta">Email</label>
+            <input type="email" id="email-nuevo" class="input-campo" placeholder="tucorreo@email.com">
+        </div>
+        <div class="grupo-input">
+            <label class="etiqueta">Contraseña</label>
+            <input type="password" id="contrasena-nuevo" class="input-campo" placeholder="••••••" maxlength="6">
+            <span class="hint-contrasena">Exactamente 6 caracteres</span>
+        </div>
+        <button class="btn-principal" id="btn-crear" onclick="crearCuenta()">Crear Cuenta</button>
+        <div class="separador"><div class="separador-linea"></div><span class="separador-texto">o</span><div class="separador-linea"></div></div>
+        <button class="btn-secundario" onclick="mostrarLogin()">Ya tengo cuenta</button>
+    </div>
+
+</div>
+
+<script>
+    const SUPABASE_URL = "https://xdalimxqwymjbxjlipts.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g";
+    const cliente = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ✅ Verificar si ya hay sesión activa
+    async function init() {
+        const { data: { session } } = await cliente.auth.getSession();
+        if (session) {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // Verificar si hay usuario guardado en localStorage
+        const usuarioGuardado = localStorage.getItem('ra_usuario_nombre');
+        const emailGuardado = localStorage.getItem('ra_usuario_email');
+
+        if (usuarioGuardado && emailGuardado) {
+            mostrarLoginGuardado(usuarioGuardado);
+        } else {
+            mostrarLogin();
+        }
+    }
+
+    function mostrarLoginGuardado(nombre) {
+        document.getElementById('vista-login-guardado').style.display = 'block';
+        document.getElementById('vista-login-normal').style.display = 'none';
+        document.getElementById('vista-crear').style.display = 'none';
+        document.getElementById('nombre-guardado-display').innerText = nombre;
+        document.getElementById('avatar-inicial').innerText = nombre.charAt(0).toUpperCase();
+        setTimeout(() => document.getElementById('contrasena-guardado').focus(), 100);
+    }
+
+    function mostrarLogin() {
+        document.getElementById('vista-login-guardado').style.display = 'none';
+        document.getElementById('vista-login-normal').style.display = 'block';
+        document.getElementById('vista-crear').style.display = 'none';
+        setTimeout(() => document.getElementById('email-login').focus(), 100);
+    }
+
+    function mostrarCambiarUsuario() {
+        localStorage.removeItem('ra_usuario_nombre');
+        localStorage.removeItem('ra_usuario_email');
+        mostrarLogin();
+    }
+
+    function mostrarCrearCuenta() {
+        document.getElementById('vista-login-guardado').style.display = 'none';
+        document.getElementById('vista-login-normal').style.display = 'none';
+        document.getElementById('vista-crear').style.display = 'block';
+        setTimeout(() => document.getElementById('nombre-nuevo').focus(), 100);
+    }
+
+    function mostrarError(id, msg) {
+        const el = document.getElementById(id);
+        el.innerText = msg;
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 5000);
+    }
+
+    function mostrarExito(id, msg) {
+        const el = document.getElementById(id);
+        el.innerText = msg;
+        el.style.display = 'block';
+    }
+
+    async function entrarConUsuarioGuardado() {
+        const email = localStorage.getItem('ra_usuario_email');
+        const contrasena = document.getElementById('contrasena-guardado').value;
+        if (!contrasena) return mostrarError('mensaje-error-guardado', 'Escribe tu contraseña');
+        if (contrasena.length !== 6) return mostrarError('mensaje-error-guardado', 'La contraseña debe tener 6 caracteres');
+
+        const { error } = await cliente.auth.signInWithPassword({ email, password: contrasena });
+        if (error) {
+            mostrarError('mensaje-error-guardado', 'Contraseña incorrecta');
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+
+    async function entrar() {
+        const email = document.getElementById('email-login').value.trim();
+        const contrasena = document.getElementById('contrasena-login').value;
+        if (!email) return mostrarError('mensaje-error-normal', 'Escribe tu email');
+        if (contrasena.length !== 6) return mostrarError('mensaje-error-normal', 'La contraseña debe tener 6 caracteres');
+
+        const { data, error } = await cliente.auth.signInWithPassword({ email, password: contrasena });
+        if (error) {
+            mostrarError('mensaje-error-normal', 'Email o contraseña incorrectos');
+        } else {
+            // Guardar usuario en dispositivo
+            const { data: perfil } = await cliente.from('perfiles').select('nombre').eq('id', data.user.id).single();
+            const nombre = perfil?.nombre || email;
+            localStorage.setItem('ra_usuario_nombre', nombre);
+            localStorage.setItem('ra_usuario_email', email);
+            window.location.href = 'index.html';
+        }
+    }
+
+    async function crearCuenta() {
+        const nombre = document.getElementById('nombre-nuevo').value.trim();
+        const email = document.getElementById('email-nuevo').value.trim();
+        const contrasena = document.getElementById('contrasena-nuevo').value;
+
+        if (!nombre) return mostrarError('mensaje-error-crear', 'Escribe tu nombre completo');
+        if (!email) return mostrarError('mensaje-error-crear', 'Escribe tu email');
+        if (contrasena.length !== 6) return mostrarError('mensaje-error-crear', 'La contraseña debe tener exactamente 6 caracteres');
+
+        const btn = document.getElementById('btn-crear');
+        btn.disabled = true;
+        btn.innerText = 'Creando...';
+
+        const { data, error } = await cliente.auth.signUp({
+            email,
+            password: contrasena,
+            options: { data: { nombre } }
+        });
+
+        if (error) {
+            mostrarError('mensaje-error-crear', error.message);
+            btn.disabled = false;
+            btn.innerText = 'Crear Cuenta';
+            return;
+        }
+
+        // Guardar perfil en tabla perfiles
+        if (data.user) {
+            await cliente.from('perfiles').insert([{ id: data.user.id, nombre, email }]);
+        }
+
+        // Guardar en dispositivo
+        localStorage.setItem('ra_usuario_nombre', nombre);
+        localStorage.setItem('ra_usuario_email', email);
+
+        btn.disabled = false;
+        btn.innerText = 'Crear Cuenta';
+        mostrarExito('mensaje-exito-crear', `✅ Cuenta creada. Revisa tu email (${email}) para confirmar y luego entra.`);
+    }
+
+    init();
+</script>
+</body>
+</html>

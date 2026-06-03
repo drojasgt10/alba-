@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Recepciones - Refugio del Alba</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .barra-superior { background-color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10; }
+        .titulo-pantalla { font-family: 'Comfortaa', sans-serif; font-size: 20px; font-weight: 700; color: #2C425E; margin: 0; }
+        .grupo-botones-regreso { display: flex; gap: 10px; }
+        .btn-volver-registro { background-color: #8A9BA8; color: white; border: none; padding: 10px 16px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 12px; }
+        .btn-volver-menu { background-color: #466995; color: white; border: none; padding: 10px 16px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 12px; }
+        .pantalla-dividida { display: flex; flex: 1; height: calc(100vh - 65px); box-sizing: border-box; padding: 20px; gap: 20px; overflow: hidden; }
+        .pestana-residentes { display: none; }
+        .overlay-movil { display: none; }
+        .columna-residentes-acero { background-color: #2C425E; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; box-sizing: border-box; flex-shrink: 0; overflow: hidden; width: 260px; }
+        .btn-colapsar { display: none; }
+        .cabecera-col-res { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
+        .titulo-col-res { font-family: 'Comfortaa', sans-serif; font-size: 14px; color: white; margin: 0; white-space: nowrap; overflow: hidden; }
+        .cuerpo-lista-res { overflow-y: auto; flex: 1; }
+        .titulo-piso { font-size: 11px; font-weight: 700; color: #2C425E; background-color: #B9D1EA; padding: 4px 12px; border-radius: 15px; margin: 12px 0 6px 0; text-transform: uppercase; display: inline-block; }
+        .titulo-piso:first-of-type { margin-top: 0; }
+        .item-residente { padding: 10px 13px; background-color: #FDFBF7; border: 1px solid #E1D7C6; border-radius: 10px; font-weight: 700; cursor: pointer; color: #2C425E; transition: all 0.2s; margin-bottom: 6px; font-size: 13.5px; }
+        .item-residente:hover { background-color: #E1D7C6; }
+        .residente-activo { background-color: #D6EEF8 !important; border-color: #A8D4EC !important; }
+        .bloque-blanco { background-color: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; box-sizing: border-box; }
+        .columna-historiales-detalle { flex: 1; overflow-y: auto; }
+        .cabecera-nombre-elegido { font-family: 'Comfortaa', sans-serif; font-size: 18px; color: #2C425E; background-color: #F5F2EB; padding: 12px; border-radius: 10px; text-align: center; margin: 0 0 12px 0; font-weight: 700; }
+        .sin-registros { color: #8A9BA8; font-style: italic; padding: 15px 0; font-size: 14px; }
+
+        /* Buscador */
+        .buscador-wrap { position: relative; margin-bottom: 16px; display: none; }
+        .buscador-wrap.visible { display: block; }
+        .buscador-input { width: 100%; padding: 10px 16px 10px 38px; border: 1.5px solid #C8D8E8; border-radius: 20px; font-family: 'Quicksand', sans-serif; font-size: 16px; font-weight: 600; color: #2C425E; background: #F5F2EB; box-sizing: border-box; outline: none; }
+        .buscador-input:focus { border-color: #466995; background: white; }
+        .buscador-lupa { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; }
+        .buscador-clear { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 16px; cursor: pointer; color: #8A9BA8; display: none; }
+
+        /* Bloques historial */
+        .bloque-fecha { margin-bottom: 24px; border-radius: 14px; overflow: hidden; border: 1px solid #E1D7C6; }
+        .cabecera-fecha { background-color: #2C425E; color: white; padding: 10px 16px; font-family: 'Comfortaa', sans-serif; font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .filas-categorias { display: flex; flex-direction: column; }
+        .fila-categoria { padding: 12px 16px; border-bottom: 1px solid #F5F2EB; display: flex; gap: 12px; align-items: flex-start; }
+        .fila-categoria:last-child { border-bottom: none; }
+        .badge-categoria { font-size: 11px; font-weight: 700; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+        .badge-med { background-color: #FFF2B2; color: #7A6200; }
+        .badge-aseo { background-color: #D2E9F7; color: #1A4F72; }
+        .badge-extra { background-color: #E2D5F3; color: #4A2080; }
+        .badge-otro { background-color: #E1D7C6; color: #2C425E; }
+        .detalle-texto { font-size: 14px; font-weight: 600; color: #2C425E; line-height: 1.6; flex: 1; }
+
+        /* ✅ Botón foto en fila */
+        .btn-ver-foto-hist {
+            background: #466995; color: white; border: none;
+            padding: 4px 10px; border-radius: 8px;
+            font-family: 'Quicksand', sans-serif; font-weight: 700;
+            font-size: 12px; cursor: pointer; flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        /* Botones mensaje */
+        .btn-mensaje-pendiente { display: inline-flex; align-items: center; gap: 5px; background: #FFF3CD; color: #856404; border: 1px solid #FFEAA7; border-radius: 20px; padding: 4px 12px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 11px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+        .btn-mensaje-enviado { display: inline-flex; align-items: center; gap: 5px; background: #D1F5E0; color: #155724; border: 1px solid #A8DDB5; border-radius: 20px; padding: 4px 12px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 11px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+
+        /* Modal mensaje - estilo simple como alert */
+        .modal-msg-overlay { display: none; position: fixed; inset: 0; background: rgba(44,66,94,0.45); z-index: 500; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .modal-msg-overlay.visible { display: flex; }
+        .modal-msg-caja { background: white; border-radius: 16px; padding: 0; max-width: 420px; width: 100%; box-shadow: 0 8px 30px rgba(0,0,0,0.18); overflow: hidden; }
+        .modal-msg-titulo { background: #2C425E; color: white; padding: 12px 18px; font-family: 'Comfortaa', sans-serif; font-size: 14px; font-weight: 700; }
+        .modal-msg-cuerpo { font-family: 'Quicksand', sans-serif; font-size: 13px; color: #2C425E; line-height: 1.8; white-space: pre-wrap; background: #F5F2EB; padding: 14px 18px; max-height: 50vh; overflow-y: auto; }
+        .modal-msg-botones { display: flex; gap: 10px; padding: 12px 18px; background: white; }
+        .modal-btn-cerrar { flex: 1; padding: 10px; border-radius: 8px; border: 2px solid #466995; background: white; color: #466995; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .modal-btn-whatsapp { flex: 1; padding: 10px; border-radius: 8px; border: none; background: #25D366; color: white; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 13px; cursor: pointer; }
+
+        @media (max-width: 768px) {
+            body { overflow: auto; height: auto; }
+            .barra-superior { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+            .titulo-pantalla { font-size: 15px; }
+            .btn-volver-registro, .btn-volver-menu { padding: 7px 10px; font-size: 11px; }
+            .pantalla-dividida { flex-direction: column; height: auto; padding: 12px; padding-left: 40px; gap: 12px; overflow: visible; }
+            .columna-residentes-acero { position: fixed !important; top: 0; left: 0; bottom: 0; width: 75vw !important; max-width: 280px !important; border-radius: 0 !important; z-index: 300; transform: translateX(-100%); transition: transform 0.3s ease; padding: 70px 16px 20px !important; overflow-y: auto; box-shadow: 4px 0 20px rgba(0,0,0,0.2); }
+            .columna-residentes-acero.abierto { transform: translateX(0); }
+            .pestana-residentes { display: flex !important; position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 301; background-color: #2C425E; color: white; border: none; border-radius: 0 10px 10px 0; padding: 14px 8px; cursor: pointer; writing-mode: vertical-rl; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; box-shadow: 3px 0 10px rgba(0,0,0,0.15); transition: left 0.3s ease; align-items: center; gap: 6px; }
+            .pestana-residentes.abierto { left: min(75vw, 280px); }
+            .overlay-movil { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 299; }
+            .overlay-movil.visible { display: block; }
+            .bloque-blanco { border-radius: 14px; }
+            .cabecera-fecha { flex-direction: column; align-items: flex-start; gap: 6px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Modal mensaje previo -->
+    <div class="modal-msg-overlay" id="modal-msg">
+        <div class="modal-msg-caja">
+            <div class="modal-msg-titulo" id="modal-msg-titulo">Vista previa</div>
+            <div class="modal-msg-cuerpo" id="modal-msg-cuerpo"></div>
+            <div class="modal-msg-botones" id="modal-msg-botones"></div>
+        </div>
+    </div>
+
+    <div class="overlay-movil" id="overlay-movil" onclick="cerrarPanel()"></div>
+    <button class="pestana-residentes" id="pestana-residentes" onclick="togglePanel()">☰ Residentes</button>
+
+    <div class="barra-superior">
+        <h1 class="titulo-pantalla">Historial de Recepciones</h1>
+        <div class="grupo-botones-regreso">
+            <button class="btn-volver-registro" onclick="window.location.href='recepciones.html'">← Volver a Registro</button>
+            <button class="btn-volver-menu" onclick="window.location.href='index.html'">🏠 Menú Principal</button>
+        </div>
+    </div>
+
+    <div class="pantalla-dividida">
+        <div class="columna-residentes-acero" id="col-residentes">
+            <div class="cabecera-col-res">
+                <h2 class="titulo-col-res">RESIDENTES</h2>
+            </div>
+            <div class="cuerpo-lista-res" id="lista-residentes-container"></div>
+        </div>
+
+        <div class="bloque-blanco columna-historiales-detalle">
+            <h2 class="cabecera-nombre-elegido" id="nombre-residente-titulo">Seleccione un residente para ver su historial</h2>
+            <div class="buscador-wrap" id="buscador-wrap">
+                <span class="buscador-lupa">🔍</span>
+                <input type="text" class="buscador-input" id="buscador-input" placeholder="Buscar medicamento o ítem..." oninput="filtrarHistorial(this.value)">
+                <button class="buscador-clear" id="buscador-clear" onclick="limpiarBusqueda()">✕</button>
+            </div>
+            <div id="contenedor-historial">
+                <div class="sin-registros">Ningún residente seleccionado.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://xdalimxqwymjbxjlipts.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g";
+        const cliente = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const ORDEN_PRIMER_PISO  = ['burela','paz','blanca','celso','adolfo','óscar','pedro','josé v','fernando','graciela'];
+        const ORDEN_SEGUNDO_PISO = ['carmen','irene','sara','miriam v','maritza','juana','norma','jaime','enrique','silvia','miriam s','ángela'];
+
+        const params = new URLSearchParams(window.location.search);
+        const idDesdeURL = params.get('id');
+        let elementoActivo = null;
+        let todosLosBloques = [];
+
+        function formatFecha(f) {
+            if (!f) return '';
+            const d = new Date(f + 'T12:00:00');
+            return d.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        }
+
+        function fechaCorta(f) {
+            if (!f) return '';
+            const d = new Date(f + 'T12:00:00');
+            return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function badgeCategoria(cat) {
+            const c = (cat || '').toLowerCase();
+            if (c.includes('medic')) return `<span class="badge-categoria badge-med">💊 ${cat}</span>`;
+            if (c.includes('aseo')) return `<span class="badge-categoria badge-aseo">🧴 ${cat}</span>`;
+            if (c.includes('extra') || c.includes('insumo') || c.includes('nota')) return `<span class="badge-categoria badge-extra">📦 ${cat}</span>`;
+            return `<span class="badge-categoria badge-otro">${cat}</span>`;
+        }
+
+        function esCelular() { return window.innerWidth <= 768; }
+
+        function togglePanel() {
+            const col = document.getElementById('col-residentes');
+            col.classList.contains('abierto') ? cerrarPanel() : abrirPanel();
+        }
+        function abrirPanel() {
+            document.getElementById('col-residentes').classList.add('abierto');
+            document.getElementById('pestana-residentes').classList.add('abierto');
+            document.getElementById('overlay-movil').classList.add('visible');
+        }
+        function cerrarPanel() {
+            document.getElementById('col-residentes').classList.remove('abierto');
+            document.getElementById('pestana-residentes').classList.remove('abierto');
+            document.getElementById('overlay-movil').classList.remove('visible');
+        }
+
+        // ✅ Construir mensaje desde rows agrupados
+        function construirMensajeAgrupado(rowsAgrup, fecha, nombreCompleto) {
+            let msg = `Hoy ${fechaCorta(fecha)} se recepciona lo siguiente para ${nombreCompleto}:
+`;
+            rowsAgrup.forEach(row => {
+                msg += `
+* ${row.categoria}:
+`;
+                const items = row.detalle_registro.split(' | ');
+                const notasItem = items.find(i => i.trim().startsWith('NOTAS:'));
+                const itemsNormales = items.filter(i => !i.trim().startsWith('NOTAS:'));
+                itemsNormales.forEach(item => { if (item.trim()) msg += `     - ${item.trim()}
+`; });
+                if (notasItem) msg += `     📝 ${notasItem.trim()}
+`;
+            });
+            msg += `
+Muchas gracias, Refugio del Alba 💙`;
+            return msg;
+        }
+
+        // ✅ Construir texto del mensaje (para rows originales)
+        function construirMensaje(rows, fecha, nombreCompleto) {
+            const ordenCat = { 'Medicamentos': 1, 'Útiles de Aseo': 2, 'Insumos Extra': 3 };
+            const sorted = [...rows].sort((a,b) => (ordenCat[a.categoria]||99) - (ordenCat[b.categoria]||99));
+            let msg = `Hoy ${fechaCorta(fecha)} se recepciona lo siguiente para ${nombreCompleto}:\n`;
+            sorted.forEach(row => {
+                msg += `\n* ${row.categoria}:\n`;
+                row.detalle_registro.split(' | ').forEach(item => {
+                    if (item.trim()) msg += `     - ${item.trim()}\n`;
+                });
+            });
+            msg += `\nMuchas gracias, Refugio del Alba 💙`;
+            return msg;
+        }
+
+        // ✅ Mostrar modal simple
+        function mostrarModal(titulo, msg, mostrarWhatsapp, ids, btnPendiente) {
+            document.getElementById('modal-msg-titulo').innerText = titulo;
+            document.getElementById('modal-msg-cuerpo').innerText = msg;
+            const botones = document.getElementById('modal-msg-botones');
+            botones.innerHTML = '';
+
+            // Botón cerrar — NO cambia nada
+            const btnCerrar = document.createElement('button');
+            btnCerrar.className = 'modal-btn-cerrar';
+            btnCerrar.innerText = 'Cerrar';
+            btnCerrar.onclick = () => document.getElementById('modal-msg').classList.remove('visible');
+            botones.appendChild(btnCerrar);
+
+            // Botón WhatsApp — solo si es pendiente
+            if (mostrarWhatsapp && ids && btnPendiente) {
+                const btnWA = document.createElement('button');
+                btnWA.className = 'modal-btn-whatsapp';
+                btnWA.innerText = '📲 WhatsApp';
+                btnWA.onclick = async () => {
+                    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+                    await cliente.from('historial_recepciones_unificado')
+                        .update({ mensaje_estado: 'enviado' })
+                        .in('id', ids);
+                    // Cambiar botón pendiente → enviado
+                    btnPendiente.className = 'btn-mensaje-enviado';
+                    btnPendiente.innerHTML = '✅ Mensaje Enviado';
+                    btnPendiente.onclick = () => mostrarModal('✅ Mensaje Enviado', msg, false, null, null);
+                    document.getElementById('modal-msg').classList.remove('visible');
+                };
+                botones.appendChild(btnWA);
+            }
+
+            document.getElementById('modal-msg').classList.add('visible');
+        }
+
+        async function cargarResidentes() {
+            const { data, error } = await cliente.from('residentes').select('id, nombre_completo, apodo, piso');
+            if (error || !data) return;
+
+            let arr1 = [], arr2 = [];
+            data.forEach(r => {
+                const apodo = r.apodo?.trim() || r.nombre_completo.trim();
+                if (parseInt(r.piso) === 2) arr2.push({ ...r, apodo });
+                else arr1.push({ ...r, apodo });
+            });
+            arr1.sort((a,b) => { let iA = ORDEN_PRIMER_PISO.indexOf(a.apodo.toLowerCase()); let iB = ORDEN_PRIMER_PISO.indexOf(b.apodo.toLowerCase()); return (iA===-1?99:iA)-(iB===-1?99:iB); });
+            arr2.sort((a,b) => { let iA = ORDEN_SEGUNDO_PISO.indexOf(a.apodo.toLowerCase()); let iB = ORDEN_SEGUNDO_PISO.indexOf(b.apodo.toLowerCase()); return (iA===-1?99:iA)-(iB===-1?99:iB); });
+
+            const cont = document.getElementById('lista-residentes-container');
+            cont.innerHTML = '';
+            [{ label: 'Primer Piso', arr: arr1 }, { label: 'Segundo Piso', arr: arr2 }].forEach(grupo => {
+                const tit = document.createElement('div');
+                tit.className = 'titulo-piso';
+                tit.innerText = grupo.label;
+                cont.appendChild(tit);
+                grupo.arr.forEach(r => {
+                    const div = document.createElement('div');
+                    div.className = 'item-residente';
+                    div.innerText = r.nombre_completo;
+                    div.onclick = () => seleccionar(div, r.id, r.nombre_completo);
+                    cont.appendChild(div);
+                    if (idDesdeURL && String(r.id) === String(idDesdeURL)) {
+                        seleccionar(div, r.id, r.nombre_completo);
+                    }
+                });
+            });
+
+            if (!idDesdeURL) {
+                document.getElementById('nombre-residente-titulo').innerText = 'Seleccione un residente para ver su historial';
+                document.getElementById('contenedor-historial').innerHTML = '<div class="sin-registros">Ningún residente seleccionado.</div>';
+            }
+        }
+
+        function seleccionar(el, id, nombreCompleto) {
+            if (elementoActivo) elementoActivo.classList.remove('residente-activo');
+            el.classList.add('residente-activo');
+            elementoActivo = el;
+            // ✅ Primero cerrar panel, luego cargar historial
+            if (esCelular()) cerrarPanel();
+            verHistorial(id, nombreCompleto);
+        }
+
+        async function verHistorial(id, nombreCompleto) {
+            document.getElementById('nombre-residente-titulo').innerText = nombreCompleto;
+            document.getElementById('contenedor-historial').innerHTML = '<div class="sin-registros">Cargando...</div>';
+            document.getElementById('buscador-wrap').classList.add('visible');
+            document.getElementById('buscador-input').value = '';
+            document.getElementById('buscador-clear').style.display = 'none';
+
+            const { data, error } = await cliente
+                .from('historial_recepciones_unificado')
+                .select('*')
+                .eq('residente_id', id)
+                .order('fecha_registro', { ascending: false });
+
+            const cont = document.getElementById('contenedor-historial');
+            if (error) { cont.innerHTML = `<div class="sin-registros" style="color:#DC3545;">Error: ${error.message}</div>`; return; }
+            if (!data || data.length === 0) { cont.innerHTML = '<div class="sin-registros">No hay recepciones registradas.</div>'; return; }
+
+            // Agrupar por fecha
+            const porFecha = {};
+            data.forEach(row => {
+                const key = row.fecha_registro ? String(row.fecha_registro).split('T')[0] : 'Sin fecha';
+                if (!porFecha[key]) porFecha[key] = [];
+                porFecha[key].push(row);
+            });
+
+            const ordenCat = { 'Medicamentos': 1, 'Útiles de Aseo': 2, 'Insumos Extra': 3 };
+            cont.innerHTML = '';
+
+            Object.keys(porFecha).sort((a,b) => new Date(b) - new Date(a)).forEach(fecha => {
+                const rows = porFecha[fecha];
+                rows.sort((a,b) => (ordenCat[a.categoria]||99) - (ordenCat[b.categoria]||99));
+
+                // ✅ Agrupar por categoría + estado: enviados juntos, pendientes juntos
+                // Así: Bisoprolol(enviado) + Sertralina(pendiente) → dos grupos separados
+                const grupoEnviado = {};  // cat → items[]
+                const grupoPendiente = {}; // cat → {items[], ids[]}
+
+                rows.forEach(row => {
+                    const cat = row.categoria;
+                    const estado = row.mensaje_estado || 'pendiente';
+                    const items = row.detalle_registro.split(' | ').filter(i => i.trim());
+
+                    if (estado === 'enviado') {
+                        if (!grupoEnviado[cat]) grupoEnviado[cat] = [];
+                        grupoEnviado[cat].push(...items);
+                    } else {
+                        if (!grupoPendiente[cat]) grupoPendiente[cat] = { items: [], ids: [] };
+                        grupoPendiente[cat].items.push(...items);
+                        grupoPendiente[cat].ids.push(row.id);
+                    }
+                });
+
+                // Convertir a arrays ordenados
+                const filaEnviadas = Object.keys(grupoEnviado)
+                    .sort((a,b) => (ordenCat[a]||99)-(ordenCat[b]||99))
+                    .map(cat => ({ categoria: cat, detalle_registro: grupoEnviado[cat].join(' | ') }));
+
+                const filasPendientes = Object.keys(grupoPendiente)
+                    .sort((a,b) => (ordenCat[a]||99)-(ordenCat[b]||99))
+                    .map(cat => ({ categoria: cat, detalle_registro: grupoPendiente[cat].items.join(' | '), ids: grupoPendiente[cat].ids }));
+
+                // Add foto_url to each grouped row (take first foto found in group)
+                filaEnviadas.forEach(f => {
+                    const orig = rows.find(r => r.categoria === f.categoria && r.mensaje_estado === 'enviado' && r.foto_url);
+                    f.foto_url = orig?.foto_url || null;
+                });
+                filasPendientes.forEach(f => {
+                    const orig = rows.find(r => r.categoria === f.categoria && r.mensaje_estado !== 'enviado' && r.foto_url);
+                    f.foto_url = orig?.foto_url || null;
+                });
+                const todasFilas = [...filaEnviadas, ...filasPendientes]
+                    .sort((a,b) => (ordenCat[a.categoria]||99)-(ordenCat[b.categoria]||99));
+
+                const bloque = document.createElement('div');
+                bloque.className = 'bloque-fecha';
+
+                // Cabecera
+                const cabecera = document.createElement('div');
+                cabecera.className = 'cabecera-fecha';
+                const fechaSpan = document.createElement('span');
+                fechaSpan.innerText = formatFecha(fecha);
+                cabecera.appendChild(fechaSpan);
+
+                const btnWrap = document.createElement('div');
+                btnWrap.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap;';
+
+                // Botón enviado (si hay filas enviadas)
+                if (filaEnviadas.length > 0) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-mensaje-enviado';
+                    btn.innerHTML = '✅ Mensaje Enviado';
+                    const msg = construirMensajeAgrupado(filaEnviadas, fecha, nombreCompleto);
+                    btn.onclick = () => mostrarModal('✅ Mensaje Enviado', msg, false, null, null);
+                    btnWrap.appendChild(btn);
+                }
+
+                // Botón pendiente (si hay filas pendientes)
+                if (filasPendientes.length > 0) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-mensaje-pendiente';
+                    btn.innerHTML = '📩 Mensaje Pendiente';
+                    const msg = construirMensajeAgrupado(filasPendientes, fecha, nombreCompleto);
+                    const ids = filasPendientes.flatMap(r => r.ids);
+                    btn.onclick = () => mostrarModal('📋 Mensaje a enviar', msg, true, ids, btn);
+                    btnWrap.appendChild(btn);
+                }
+
+                cabecera.appendChild(btnWrap);
+                bloque.appendChild(cabecera);
+
+                // Mostrar todas las filas
+                const filasDiv = document.createElement('div');
+                filasDiv.className = 'filas-categorias';
+                todasFilas.forEach(row => {
+                    const fila = document.createElement('div');
+                    fila.className = 'fila-categoria';
+                    const fotoBtn = row.foto_url
+                        ? `<button class="btn-ver-foto-hist" onclick="abrirFoto('${row.foto_url}')">📷 Ver foto</button>`
+                        : '';
+                    fila.innerHTML = `${badgeCategoria(row.categoria)}<div class="detalle-texto">${row.detalle_registro}</div>${fotoBtn}`;
+                    filasDiv.appendChild(fila);
+                });
+                bloque.appendChild(filasDiv);
+                cont.appendChild(bloque);
+            });
+
+            todosLosBloques = Array.from(cont.querySelectorAll('.bloque-fecha'));
+        }
+
+        function filtrarHistorial(query) {
+            const q = query.trim().toLowerCase();
+            document.getElementById('buscador-clear').style.display = q ? 'block' : 'none';
+            todosLosBloques.forEach(bloque => {
+                if (!q) {
+                    bloque.style.display = '';
+                    bloque.querySelectorAll('.fila-categoria').forEach(f => f.style.display = '');
+                    return;
+                }
+                let algunaVisible = false;
+                bloque.querySelectorAll('.fila-categoria').forEach(fila => {
+                    const txt = fila.querySelector('.detalle-texto')?.innerText.toLowerCase() || '';
+                    const visible = txt.includes(q);
+                    fila.style.display = visible ? '' : 'none';
+                    if (visible) algunaVisible = true;
+                });
+                bloque.style.display = algunaVisible ? '' : 'none';
+            });
+        }
+
+        function limpiarBusqueda() {
+            document.getElementById('buscador-input').value = '';
+            document.getElementById('buscador-clear').style.display = 'none';
+            todosLosBloques.forEach(bloque => {
+                bloque.style.display = '';
+                bloque.querySelectorAll('.fila-categoria').forEach(f => f.style.display = '');
+            });
+        }
+
+        function abrirFoto(url) {
+            const win = window.open('', '_blank');
+            win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Foto - Refugio del Alba</title>
+                <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@700&display=swap" rel="stylesheet">
+                <style>
+                    body { margin:0; background:#F5F2EB; font-family:'Quicksand',sans-serif; }
+                    .barra { background:white; padding:12px 20px; display:flex; gap:10px; box-shadow:0 2px 10px rgba(0,0,0,0.05); }
+                    .btn-hist { background:#8A9BA8; color:white; border:none; padding:9px 16px; border-radius:8px; font-family:'Quicksand',sans-serif; font-weight:700; font-size:12px; cursor:pointer; text-transform:uppercase; }
+                    .btn-menu { background:#466995; color:white; border:none; padding:9px 16px; border-radius:8px; font-family:'Quicksand',sans-serif; font-weight:700; font-size:12px; cursor:pointer; text-transform:uppercase; }
+                    .foto-wrap { display:flex; justify-content:center; padding:20px; }
+                    img { max-width:100%; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+                </style>
+            </head><body>
+                <div class="barra">
+                    <button class="btn-hist" onclick="window.close()">← Volver al Historial</button>
+                    <button class="btn-menu" onclick="window.location.href='index.html'">🏠 Menú Principal</button>
+                </div>
+                <div class="foto-wrap"><img src="${url}"></div>
+            </body></html>`);
+            win.document.close();
+        }
+
+        cargarResidentes();
+    </script>
+</body>
+</html>

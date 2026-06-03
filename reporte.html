@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Diario - Refugio del Alba</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .barra-superior { background-color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10; }
+        .texto-titulo { font-family: 'Comfortaa', sans-serif; font-size: 20px; font-weight: 700; color: #2C425E; text-transform: capitalize; }
+        .boton-regresar { background-color: #466995; color: white; border: none; padding: 10px 18px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+        
+        .pantalla-dividida { display: flex; flex: 1; height: calc(100vh - 65px); box-sizing: border-box; padding: 20px; gap: 20px; overflow: hidden; }
+        .bloque-residentes-acero { background-color: #2C425E; border-radius: 20px; padding: 20px; width: 260px; flex-shrink: 0; overflow-y: auto; color: white; }
+        .subtitulo-bloque-blanco { font-family: 'Comfortaa', sans-serif; font-size: 18px; color: white; margin: 0 0 15px 0; border-bottom: 2px solid rgba(255,255,255,0.15); padding-bottom: 8px; text-transform: uppercase; }
+        .titulo-piso { font-size: 13px; font-weight: 700; color: #2C425E; background-color: #D1E8F7; padding: 6px 12px; border-radius: 6px; margin: 15px 0 8px 0; display: inline-block; }
+        .lista-nombres { display: flex; flex-direction: column; gap: 5px; }
+        .item-residente { padding: 10px; background-color: #FDFBF7; border: 1px solid #E1D7C6; border-radius: 8px; font-weight: 700; cursor: pointer; color: #2C425E; font-size: 14px; transition: all 0.2s; }
+        .residente-activo { background-color: #E1D7C6 !important; border-color: #E1D7C6 !important; }
+
+        .bloque-central { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+        /* ✅ Registro no crece demasiado en desktop */
+        .bloque-central > .bloque-blanco:first-child { flex-shrink: 0; }
+        .bloque-central > .bloque-blanco:last-child { flex: 1; }
+        .bloque-blanco { background-color: white; border-radius: 20px; padding: 16px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .subtitulo-bloque { font-family: 'Comfortaa', sans-serif; font-size: 18px; color: #466995; margin: 0 0 10px 0; border-bottom: 2px solid #F5F2EB; padding-bottom: 8px; text-transform: uppercase; }
+        .nombre-cabecera-formulario { font-size: 16px; font-weight: 700; color: #2C425E; margin-bottom: 10px; background-color: #F5F2EB; padding: 8px 12px; border-radius: 8px; text-align: center; text-transform: uppercase; }
+        .textarea-compacto { width: 100%; height: 50px; padding: 8px 10px; border: 1px solid #E1D7C6; border-radius: 12px; font-family: 'Quicksand', sans-serif; font-size: 16px; color: #2C425E; background-color: #FDFBF7; resize: none; box-sizing: border-box; }
+        .fila-formulario { display: flex; gap: 20px; align-items: flex-end; }
+        .contenedor-estado { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+        .opcion-estado { display: flex; align-items: center; gap: 6px; font-weight: 700; cursor: pointer; font-size: 13px; }
+        .punto { width: 16px; height: 16px; border-radius: 50%; }
+        .input-texto-hora { width: 80px; padding: 8px; border: 1px solid #E1D7C6; border-radius: 8px; font-size: 13px; }
+        .input-foto { display: none; }
+        .boton-guardar { background-color: #466995; color: white; border: none; padding: 10px 20px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 13px; transition: all 0.3s; }
+        .contador-fotos { background-color: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; display: none; }
+        .btn-ver-foto { background-color: #466995; color: white; border: none; padding: 5px 12px; border-radius: 8px; font-family: 'Quicksand', sans-serif; font-weight: 700; cursor: pointer; font-size: 11px; }
+        .tabla-historial { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; table-layout: fixed; border: 1px solid #C8CDD2; }
+        .tabla-historial th, .tabla-historial td { padding: 8px; border-right: 1px solid #C8CDD2; border-bottom: 1px solid #C8CDD2; word-wrap: break-word; }
+        .col-fecha { width: 80px; }
+        .col-estrecha { width: 50px; text-align: center; }
+
+        /* Tarjetas de historial — solo visibles en móvil */
+        .card-historial { display: none; }
+
+        /* Ocultos en desktop */
+        .pestana-residentes { display: none; }
+        .overlay-movil { display: none; }
+        .btn-hamburguesa { display: none; }
+        .seccion-menu-movil { display: none; }
+
+        /* ✅ Estados custom sin radio nativo */
+        .punto-estado {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            flex-shrink: 0;
+            transition: border 0.15s, transform 0.15s;
+            cursor: pointer;
+        }
+        .estado-btn {
+            cursor: pointer;
+            padding: 4px 10px 4px 6px;
+            border-radius: 20px;
+            border: 2px solid transparent;
+            transition: border 0.15s, background 0.15s;
+            user-select: none;
+        }
+        .estado-btn.activo-estado {
+            background: #F5F2EB;
+            border: 2px solid #2C425E;
+        }
+        .estado-btn.activo-estado .punto-estado {
+            border: 3px solid transparent;
+        }
+
+        /* ✅ Hora estilizada */
+        .input-hora-estilizado {
+            background-color: #C8D8E8;
+            border: 1px solid #A8C0D6;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 13px;
+            color: #2C425E;
+            width: 80px;
+            outline: none;
+        }
+        .input-hora-estilizado::placeholder { color: #2C425E; font-weight: 700; }
+        .input-hora-estilizado:focus { border-color: #2C425E; }
+
+        /* ✅ Cabecera unificada — franja azul acero extremo a extremo */
+        .cabecera-unificada {
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            background-color: #2C425E;
+            padding: 9px 20px;
+            margin: -16px -20px 12px -20px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ✅ Fila botones solo en móvil */
+        .fila-botones-movil { display: none; }
+
+        /* ✅ Hora en fila formulario, ocultar hora del contenedor-estado en desktop */
+        .hora-solo-movil { display: none; }
+
+        /* ── MÓVIL ── */
+        @media (max-width: 768px) {
+            body { height: auto; overflow: auto; }
+            /* ✅ Barra siempre visible arriba */
+            .barra-superior {
+                position: fixed;
+                top: 0; left: 0; right: 0;
+                z-index: 200;
+                padding: 10px 14px;
+            }
+            .texto-titulo { font-size: 13px; }
+            .boton-regresar { padding: 7px 10px; font-size: 11px; }
+            /* ✅ Empujar contenido bajo la barra fija */
+            .pantalla-dividida { flex-direction: column; height: auto; padding: 12px; padding-top: 64px; gap: 12px; overflow: visible; }
+
+            /* Panel lateral deslizante */
+            .bloque-residentes-acero {
+                position: fixed !important;
+                top: 0; left: 0; bottom: 0;
+                width: 75vw !important;
+                max-width: 280px !important;
+                border-radius: 0 !important;
+                z-index: 300;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                padding: 70px 16px 20px !important;
+                overflow-y: auto;
+                box-shadow: 4px 0 20px rgba(0,0,0,0.2);
+            }
+            .bloque-residentes-acero.abierto { transform: translateX(0); }
+
+            /* Pestaña lateral vertical */
+            .pestana-residentes {
+                display: flex !important;
+                position: fixed;
+                top: 50%;
+                left: 0;
+                transform: translateY(-50%);
+                z-index: 301;
+                background-color: #2C425E;
+                color: white;
+                border: none;
+                border-radius: 0 10px 10px 0;
+                padding: 14px 8px;
+                cursor: pointer;
+                writing-mode: vertical-rl;
+                font-family: 'Quicksand', sans-serif;
+                font-weight: 700;
+                font-size: 11px;
+                letter-spacing: 1px;
+                text-transform: uppercase;
+                box-shadow: 3px 0 10px rgba(0,0,0,0.15);
+                transition: left 0.3s ease;
+                align-items: center;
+                gap: 6px;
+            }
+            .pestana-residentes.abierto { left: min(75vw, 280px); }
+
+            .overlay-movil { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 299; }
+            .overlay-movil.visible { display: block; }
+
+            /* ✅ Espacio a la izquierda para no tapar con la pestaña */
+            .pantalla-dividida { padding-left: 40px !important; }
+            .bloque-central { overflow: visible; }
+            .bloque-blanco { border-radius: 14px; padding: 14px; }
+            .subtitulo-bloque { font-size: 14px; }
+            .nombre-cabecera-formulario { font-size: 14px; }
+            .textarea-compacto { font-size: 16px !important; }
+
+            /* ✅ Reporte e incidentes apilados, cada uno full width */
+            .fila-formulario {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .fila-formulario > div {
+                width: 100% !important;
+                flex: unset !important;
+            }
+
+            /* ✅ Estados en una sola fila en móvil */
+            .contenedor-estado {
+                gap: 6px;
+                flex-wrap: nowrap;
+                margin-top: 8px;
+                overflow-x: auto;
+            }
+            .punto-estado { width: 10px !important; height: 10px !important; }
+            .estado-btn { padding: 3px 6px 3px 4px; font-size: 11px; }
+            .input-hora-estilizado { width: 60px; padding: 5px 8px; font-size: 12px; }
+            /* ✅ En móvil: ocultar botones del contenedor-estado */
+            .contenedor-estado .boton-guardar { display: none; }
+            .contenedor-estado #contador-fotos { display: none; }
+            /* ✅ Mostrar fila botones móvil */
+            .fila-botones-movil {
+                display: flex;
+                gap: 10px;
+                margin-top: 12px;
+                width: 100%;
+            }
+            /* ✅ En móvil: mostrar cabecera unificada como franja azul */
+            .cabecera-unificada {
+                display: block !important;
+                font-size: 13px;
+                color: white !important;
+                background-color: #2C425E !important;
+                padding: 10px 14px;
+                margin: -14px -14px 12px -14px;
+                text-align: center;
+                border-radius: 14px 14px 0 0;
+                white-space: normal;
+                line-height: 1.6;
+            }
+            #nombre-reporte { display: none !important; }
+            #fecha-hoy { display: none !important; }
+
+            /* ✅ Ocultar tabla, mostrar tarjetas en móvil */
+            .tabla-historial thead, .tabla-historial tbody { display: none; }
+            .card-historial {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 8px;
+            }
+            .card-item {
+                background: #FDFBF7;
+                border: 1px solid #E1D7C6;
+                border-radius: 12px;
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .card-fila-superior {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .card-fecha {
+                font-size: 12px;
+                font-weight: 700;
+                color: #8A9BA8;
+                flex-shrink: 0;
+            }
+            .card-bolita {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                flex-shrink: 0;
+            }
+            .card-reporte {
+                font-size: 14px;
+                font-weight: 600;
+                color: #2C425E;
+                flex: 1;
+                line-height: 1.4;
+                word-break: break-word;
+                min-width: 0;
+            }
+            .card-foto-btn {
+                background-color: #466995;
+                color: white;
+                border: none;
+                padding: 4px 10px;
+                border-radius: 6px;
+                font-family: 'Quicksand', sans-serif;
+                font-weight: 700;
+                cursor: pointer;
+                font-size: 11px;
+                flex-shrink: 0;
+            }
+            .card-incidente {
+                font-size: 13px;
+                color: #466995;
+                font-weight: 600;
+                padding-top: 4px;
+                border-top: 1px solid #F5F2EB;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="overlay-movil" id="overlay-movil" onclick="cerrarPanel()"></div>
+    <button class="pestana-residentes" id="pestana-residentes" onclick="togglePanel()">☰ Residentes</button>
+
+    <div class="barra-superior">
+        <div class="texto-titulo">Reporte Diario: Historial Y Registro</div>
+        <button class="boton-regresar" onclick="window.location.href='index.html'">Volver al menú</button>
+    </div>
+
+    <div class="pantalla-dividida">
+        <div class="bloque-residentes-acero" id="contenedor-residentes">
+            <div class="contenido-panel-residentes">
+                <h2 class="subtitulo-bloque-blanco">RESIDENTES</h2>
+            </div>
+        </div>
+
+        <div class="bloque-central">
+            <div class="bloque-blanco">
+                <div class="subtitulo-bloque">REGISTRO Y REPORTE DIARIO</div>
+                <div class="cabecera-unificada" id="cabecera-unificada">
+                    <div id="fecha-hoy-inline" style="font-size:12px; opacity:0.85;"></div>
+                    <div id="nombre-reporte-inline" style="font-weight:700; font-size:14px;">Seleccione un residente</div>
+                </div>
+                <!-- Hidden elements for mobile compatibility -->
+                <div id="fecha-hoy" style="display:none;"></div>
+                <div class="nombre-cabecera-formulario" id="nombre-reporte" style="display:none;">SELECCIONE UN RESIDENTE...</div>
+                
+                <!-- ✅ Reporte e Incidentes apilados en móvil -->
+                <div class="fila-formulario">
+                    <div style="flex:1;">
+                        <label style="font-weight:700; display:block; margin-bottom:6px;">REPORTE:</label>
+                        <textarea id="texto-reporte-libre" class="textarea-compacto" style="height:90px;"></textarea>
+                    </div>
+                    <!-- incidente oculto pero mantiene el campo para compatibilidad -->
+                    <textarea id="texto-incidente" style="display:none;"></textarea>
+                </div>
+
+                <!-- ✅ Estado + botones en una sola fila -->
+                <div class="contenedor-estado">
+                    <input type="text" id="hora-suceso" class="input-hora-estilizado" placeholder="Hora">
+                    <div class="opcion-estado estado-btn activo-estado" data-valor="Normal" onclick="seleccionarEstado(this)">
+                        <div class="punto-estado" style="background:green;"></div> Normal
+                    </div>
+                    <div class="opcion-estado estado-btn" data-valor="Gravedad Media" onclick="seleccionarEstado(this)">
+                        <div class="punto-estado" style="background:orange;"></div> Gravedad Media
+                    </div>
+                    <div class="opcion-estado estado-btn" data-valor="Gravedad Alta" onclick="seleccionarEstado(this)">
+                        <div class="punto-estado" style="background:red;"></div> Gravedad Alta
+                    </div>
+                    <!-- Hidden input to store selected value -->
+                    <input type="hidden" id="estado-seleccionado" value="Normal">
+                    <div style="flex:1;"></div>
+                    <span id="contador-fotos" class="contador-fotos"></span>
+                    <input type="file" id="input-foto" class="input-foto" accept="image/*" multiple onchange="actualizarContador()">
+                    <button class="boton-guardar" style="margin-left:0;" onclick="document.getElementById('input-foto').click()">📸 FOTO</button>
+                    <button id="btn-guardar" class="boton-guardar" onclick="guardarReporteCompleto()">Guardar Reporte</button>
+                </div>
+                <!-- Botones solo en móvil -->
+                <div class="fila-botones-movil">
+                    <button class="boton-guardar" style="flex:1;" onclick="document.getElementById('input-foto-movil').click()">📸 FOTO</button>
+                    <input type="file" id="input-foto-movil" class="input-foto" accept="image/*" multiple onchange="actualizarContadorMovil()">
+                    <button class="boton-guardar" style="flex:1;" onclick="guardarReporteCompleto()">Guardar Reporte</button>
+                </div>
+            </div>
+
+            <div class="bloque-blanco" style="flex: 1;">
+                <h2 class="subtitulo-bloque">Historial De Reporte</h2>
+                <!-- Tabla desktop -->
+                <table class="tabla-historial">
+                    <thead><tr><th class="col-fecha">FECHA</th><th>REPORTE</th><th class="col-estrecha">ESTADO</th><th class="col-estrecha">HORA</th><th class="col-estrecha">FOTO</th></tr></thead>
+                    <tbody id="tabla-historial-body"></tbody>
+                </table>
+                <!-- Tarjetas móvil -->
+                <div class="card-historial" id="card-historial-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const cliente = window.supabase.createClient("https://xdalimxqwymjbxjlipts.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g");
+        let residenteID = null;
+
+        const fechaHoy = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase();
+        document.getElementById('fecha-hoy').innerText = fechaHoy;
+        document.getElementById('fecha-hoy-inline').innerText = fechaHoy;
+
+        function esCelular() { return window.innerWidth <= 768; }
+
+        function togglePanel() {
+            const panel = document.getElementById('contenedor-residentes');
+            const pestana = document.getElementById('pestana-residentes');
+            const overlay = document.getElementById('overlay-movil');
+            const abierto = panel.classList.toggle('abierto');
+            pestana.classList.toggle('abierto', abierto);
+            overlay.classList.toggle('visible', abierto);
+        }
+
+        function cerrarPanel() {
+            document.getElementById('contenedor-residentes').classList.remove('abierto');
+            document.getElementById('pestana-residentes').classList.remove('abierto');
+            document.getElementById('overlay-movil').classList.remove('visible');
+        }
+
+        function abrirFoto(url) {
+            const win = window.open("", "_blank");
+            win.document.write(`<html><body style="margin:0;text-align:center;background:#F5F2EB;">
+                <div style="background:white;padding:15px;display:flex;justify-content:flex-end;gap:10px;box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                    <button onclick="window.close()" style="background:#466995;color:white;border:none;padding:10px 18px;border-radius:8px;font-weight:700;cursor:pointer;">Regresar</button>
+                    <button onclick="window.location.href='index.html'" style="background:#466995;color:white;border:none;padding:10px 18px;border-radius:8px;font-weight:700;cursor:pointer;">Menú</button>
+                </div>
+                <img src="${url}" style="max-width:90%;margin-top:20px;border-radius:10px;">
+            </body></html>`);
+        }
+
+        function actualizarContador() {
+            const input = document.getElementById('input-foto');
+            const contador = document.getElementById('contador-fotos');
+            if (input.files.length > 0) {
+                contador.innerText = input.files.length + " foto(s)";
+                contador.style.display = 'inline';
+            } else {
+                contador.style.display = 'none';
+            }
+        }
+
+        async function cargarResidentes() {
+            const { data } = await cliente.from('residentes').select('*').order('piso', { ascending: true });
+            const contenedor = document.querySelector('#contenedor-residentes .contenido-panel-residentes') || document.getElementById('contenedor-residentes');
+            const pisos = [...new Set(data.map(r => r.piso || "Sin Piso"))];
+            pisos.forEach(piso => {
+                const tituloPiso = document.createElement('div');
+                tituloPiso.className = 'titulo-piso';
+                tituloPiso.innerText = (piso == 1 ? "PRIMER PISO" : "SEGUNDO PISO");
+                contenedor.appendChild(tituloPiso);
+                const lista = document.createElement('div');
+                lista.className = 'lista-nombres';
+                data.filter(r => (r.piso || "Sin Piso") == piso).forEach(r => {
+                    const div = document.createElement('div');
+                    div.className = 'item-residente';
+                    div.innerText = r.nombre || r.nombre_completo || "Sin nombre";
+                    div.onclick = function() {
+                        document.querySelectorAll('.item-residente').forEach(el => el.classList.remove('residente-activo'));
+                        this.classList.add('residente-activo');
+                        residenteID = r.id;
+                        const nombreRes = (r.nombre || r.nombre_completo).toUpperCase();
+                        document.getElementById('nombre-reporte').innerText = "REPORTE DE: " + nombreRes;
+                        document.getElementById('nombre-reporte-inline').innerText = nombreRes;
+                        
+                        if (esCelular()) cerrarPanel();
+                        cargarHistorial();
+                    };
+                    lista.appendChild(div);
+                });
+                contenedor.appendChild(lista);
+            });
+        }
+
+        async function cargarHistorial() {
+            if (!residenteID) return;
+            const { data } = await cliente.from('reporte_diario').select('*').eq('residente_id', residenteID).order('fecha_creacion', { ascending: false });
+            const tbody = document.getElementById('tabla-historial-body');
+            tbody.innerHTML = '';
+            const cards = document.getElementById('card-historial-body');
+            if (cards) cards.innerHTML = '';
+            (data || []).forEach(item => {
+                let color = item.estado === 'Gravedad Alta' ? 'red' : (item.estado === 'Gravedad Media' ? 'orange' : 'green');
+                const fecha = item.fecha_creacion ? new Date(item.fecha_creacion).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+                tbody.innerHTML += '<tr><td>' + fecha + '</td><td>' + (item.reporte_diario_escrito || '') + '</td><td class="col-estrecha"><div class="punto" style="background:' + color + '; display:inline-block;"></div></td><td class="col-estrecha">' + (item.hora_del_suceso || '') + '</td><td class="col-estrecha">' + (item.url_foto ? '<button class="btn-ver-foto" onclick="abrirFoto(\'' + item.url_foto + '\')">Ver</button>' : '-') + '</td></tr>';
+                if (cards) {
+                    const horaTexto = item.hora_del_suceso ? '<div class="card-incidente">🕐 ' + item.hora_del_suceso + '</div>' : '';
+                    cards.innerHTML += '<div class="card-item"><div class="card-fila-superior"><span class="card-fecha">' + fecha + '</span><div class="card-bolita" style="background:' + color + ';"></div><span class="card-reporte">' + (item.reporte_diario_escrito || '(sin reporte)') + '</span>' + (item.url_foto ? '<button class="card-foto-btn" onclick="abrirFoto(\'' + item.url_foto + '\')">📷</button>' : '') + '</div>' + horaTexto + '</div>';
+                }
+            });
+        }
+
+        async function guardarReporteCompleto() {
+            if (!residenteID) return alert("Selecciona un residente");
+            // ✅ Leer foto de desktop o móvil
+            const inputFotoDesktop = document.getElementById('input-foto');
+            const inputFotoMovil = document.getElementById('input-foto-movil');
+            const files = (inputFotoDesktop && inputFotoDesktop.files.length > 0)
+                ? inputFotoDesktop.files
+                : (inputFotoMovil ? inputFotoMovil.files : null);
+            let urlFoto = null;
+            if (files && files.length > 0) {
+                const file = files[0];
+                const cleanName = Date.now() + "_" + file.name.replace(/[^a-z0-9.]/gi, '_');
+                const { data, error } = await cliente.storage.from('fotos-reportes').upload(cleanName, file);
+                if (data) {
+                    const { data: publicUrl } = cliente.storage.from('fotos-reportes').getPublicUrl(data.path);
+                    urlFoto = publicUrl.publicUrl;
+                } else {
+                    alert("Error subiendo imagen: " + error.message);
+                    return;
+                }
+            }
+            const { error } = await cliente.from('reporte_diario').insert([{
+                residente_id: residenteID,
+                reporte_diario_escrito: document.getElementById('texto-reporte-libre').value,
+                incidentes: document.getElementById('texto-incidente').value,
+                estado: document.getElementById('estado-seleccionado').value,
+                hora_del_suceso: document.getElementById('hora-suceso').value,
+                url_foto: urlFoto
+            }]);
+            if (!error) {
+                // Limpiar formulario
+                document.getElementById('texto-reporte-libre').value = '';
+                document.getElementById('texto-incidente').value = '';
+                document.getElementById('hora-suceso').value = '';
+                if (document.getElementById('input-foto')) document.getElementById('input-foto').value = '';
+                if (document.getElementById('input-foto-movil')) document.getElementById('input-foto-movil').value = '';
+                document.getElementById('contador-fotos').style.display = 'none';
+                seleccionarEstado(document.querySelector('.estado-btn[data-valor="Normal"]'));
+                // ✅ Recargar historial directamente sin reload de página
+                await cargarHistorial();
+                alert("Guardado exitosamente ✓");
+            } else {
+                alert("Error: " + error.message);
+            }
+        }
+
+        function seleccionarEstado(el) {
+            document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('activo-estado'));
+            el.classList.add('activo-estado');
+            document.getElementById('estado-seleccionado').value = el.dataset.valor;
+        }
+
+        cargarResidentes();
+    </script>
+</body>
+</html>

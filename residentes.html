@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fichas de Residentes - Refugio del Alba</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .barra-superior { background-color: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 10; }
+        .texto-izquierda-superior { font-family: 'Comfortaa', sans-serif; font-size: 20px; font-weight: 700; color: #2C425E; }
+        .grupo-botones-barra { display: flex; gap: 12px; align-items: center; }
+        .boton-eventos-medicos { background-color: white; color: #466995; border: 2px solid #466995; padding: 9px 18px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 13px; transition: all 0.2s ease; }
+        .boton-regresar-derecha { background-color: #466995; color: white; border: none; padding: 11px 18px; font-family: 'Quicksand', sans-serif; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; font-size: 13px; }
+        .pantalla-dividida { display: flex; flex: 1; height: calc(100vh - 65px); box-sizing: border-box; padding: 20px; gap: 20px; }
+        .bloque-blanco { background-color: white; border-radius: 20px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); display: flex; flex-direction: column; box-sizing: border-box; }
+        .bloque-residentes-acero { background-color: #2C425E; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; box-sizing: border-box; flex: 1; overflow-y: auto; }
+        .subtitulo-bloque { font-family: 'Comfortaa', sans-serif; font-size: 16px; color: #466995; margin: 0 0 15px 0; border-bottom: 2px solid #F5F2EB; padding-bottom: 8px; text-transform: uppercase; }
+        .bloque-residentes-acero .subtitulo-bloque { color: white; border-bottom: 2px solid rgba(255,255,255,0.15); }
+        .titulo-piso { font-size: 13px; font-weight: 700; color: #2C425E; background-color: #B9D1EA; text-transform: uppercase; letter-spacing: 1px; margin: 18px 0 10px 0; padding: 6px 14px; border-radius: 6px; display: inline-block; align-self: flex-start; }
+        .titulo-piso:first-of-type { margin-top: 0; }
+        .lista-nombres { display: flex; flex-direction: column; gap: 6px; }
+        .item-residente { padding: 12px 15px; background-color: #FDFBF7; border: 1px solid #E1D7C6; color: #2C425E; border-radius: 10px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+        .residente-activo { background-color: #E1D7C6 !important; }
+        .columna-ficha-datos { flex: 1.4; overflow-y: auto; gap: 15px; }
+        .columna-kardex-detalle { flex: 2.4; overflow-y: auto; }
+        .perfil-cabecera { display: flex; flex-direction: column; padding: 10px 0; border-bottom: 2px solid #F5F2EB; margin-bottom: 5px; }
+        .perfil-titulo-nombre { font-size: 19px; font-weight: 700; margin: 0; color: #2C425E; }
+        .grupo-info-ficha { display: flex; flex-direction: column; gap: 12px; }
+        .dato-linea { font-size: 14px; font-weight: 700; font-family: 'Quicksand', sans-serif; line-height: 1.4; }
+        .dato-linea-inline { font-size: 14px; font-weight: 700; font-family: 'Quicksand', sans-serif; line-height: 1.4; display: flex; align-items: baseline; gap: 6px; }
+        .fila-compartida-datos { display: flex; justify-content: space-between; align-items: baseline; width: 100%; gap: 15px; }
+        .valor-registro-fijo { font-family: 'Quicksand', sans-serif !important; font-weight: 700 !important; color: #2C425E; }
+        .negrita-etiqueta { font-weight: 700; color: #8A9BA8; text-transform: uppercase; font-size: 12px; display: block; margin-bottom: 2px; }
+        .negrita-etiqueta-inline { font-weight: 700; color: #8A9BA8; text-transform: uppercase; font-size: 12px; white-space: nowrap; }
+        .alerta-alergia-caja { background-color: rgba(220,53,69,0.08); border-left: 4px solid #DC3545; padding: 12px; border-radius: 8px; color: #DC3545; font-weight: 700; font-size: 14px; }
+        .boton-inventario-pertenencias { background-color: white; color: #466995; border: 2px solid #466995; padding: 12px; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 13px; border-radius: 10px; cursor: pointer; text-transform: uppercase; width: 100%; margin-top: 5px; }
+        .contenedor-lineas-kardex { display: flex; flex-direction: column; }
+        .linea-kardex-item { font-size: 14px; font-weight: 500; color: #2C425E; padding: 15px 0; border-bottom: 1px solid #E1D7C6; line-height: 1.6; }
+        .kardex-fila-principal { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .kardex-bloque-izquierdo { display: flex; align-items: center; gap: 4px; }
+        .resaltado-dato { font-weight: 700; color: #2C425E; }
+        .kardex-bloque-derecho { text-align: right; white-space: nowrap; padding-left: 15px; }
+        .etiqueta-kardex-fija { font-weight: 700; color: #8A9BA8; text-transform: uppercase; font-size: 12px; }
+        .nota-horario { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .tag-horario-ovalado { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #2C425E; }
+        .horario-desayuno { background-color: #D2E9F7 !important; }
+        .horario-almuerzo { background-color: #FFF2B2 !important; }
+        .horario-lonche { background-color: #E2D5F3 !important; }
+        .horario-cena { background-color: #F8D7DA !important; }
+        .horario-otro { background-color: #E2E3E5 !important; }
+        .sin-seleccion { color: #8A9BA8; font-style: italic; text-align: center; padding: 40px 0; font-size: 15px; }
+        .kardex-nombre-linea { display: flex; align-items: center; gap: 4px; font-size: 14px; margin-bottom: 4px; }
+        .kardex-detalle-linea { font-size: 13px; margin-bottom: 4px; }
+        .panel-lateral-movil { display: none; }
+        .pestana-abrir-lista { display: none; }
+        @media (max-width: 768px) {
+            body { height: auto; overflow: auto; }
+            .barra-superior { position: fixed; top: 0; left: 0; right: 0; z-index: 200; padding: 10px 14px; }
+            .texto-izquierda-superior { font-size: 15px; }
+            .boton-eventos-medicos { padding: 7px 8px; font-size: 11px; }
+            .boton-regresar-derecha { padding: 7px 8px; font-size: 11px; }
+            /* ✅ Espacio a la izquierda para la pestaña */
+            .pantalla-dividida { flex-direction: column; height: auto; padding: 12px; padding-top: 74px; padding-left: 48px; gap: 12px; position: relative; }
+            .bloque-residentes-acero { display: none; }
+            .panel-lateral-movil { display: block; position: fixed; top: 0; left: 0; bottom: 0; width: 75vw; max-width: 280px; background-color: #2C425E; z-index: 300; padding: 70px 16px 20px; box-sizing: border-box; overflow-y: auto; transform: translateX(-100%); transition: transform 0.3s ease; box-shadow: 4px 0 20px rgba(0,0,0,0.2); }
+            .panel-lateral-movil.abierto { transform: translateX(0); }
+            .panel-lateral-movil .subtitulo-bloque { color: white; border-bottom: 2px solid rgba(255,255,255,0.15); font-size: 14px; margin-bottom: 12px; }
+            .panel-lateral-movil .titulo-piso { font-size: 11px; padding: 4px 10px; margin: 12px 0 6px 0; }
+            .panel-lateral-movil .item-residente { padding: 10px 12px; font-size: 13px; border-radius: 8px; margin-bottom: 5px; }
+            .pestana-abrir-lista { display: flex; position: fixed; top: 50%; left: 0; transform: translateY(-50%); z-index: 301; background-color: #2C425E; color: white; border: none; border-radius: 0 10px 10px 0; padding: 14px 8px; cursor: pointer; writing-mode: vertical-rl; font-family: 'Quicksand', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; box-shadow: 3px 0 10px rgba(0,0,0,0.15); transition: left 0.3s ease; align-items: center; gap: 6px; }
+            .pestana-abrir-lista.abierto { left: 75vw; max-width: 280px; }
+            .overlay-panel { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 299; }
+            .overlay-panel.visible { display: block; }
+            .bloque-blanco { flex: none; width: 100%; box-sizing: border-box; border-radius: 14px; padding: 16px; }
+            .columna-ficha-datos, .columna-kardex-detalle { overflow-y: visible; }
+            .perfil-titulo-nombre { font-size: 16px; }
+            .dato-linea, .dato-linea-inline { font-size: 13px; }
+            .negrita-etiqueta { font-size: 11px; }
+            .alerta-alergia-caja { font-size: 13px; padding: 10px; }
+            .fila-compartida-datos { flex-direction: column; gap: 8px; }
+            .kardex-fila-principal { flex-direction: column; align-items: flex-start; gap: 2px; }
+            .kardex-bloque-izquierdo { flex-wrap: wrap; gap: 4px; }
+            .kardex-bloque-derecho { text-align: left; padding-left: 0; white-space: normal; margin-top: 2px; }
+            .linea-kardex-item { font-size: 13px; padding: 12px 0; }
+            .etiqueta-kardex-fija { font-size: 11px; }
+            .tag-horario-ovalado { font-size: 11px; padding: 3px 10px; }
+            .nota-horario { margin-top: 6px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="barra-superior">
+        <div class="texto-izquierda-superior">Fichas de Residentes</div>
+        <div class="grupo-botones-barra">
+            <button class="boton-eventos-medicos" onclick="irAEventosMedicosConFiltro()">📅 Eventos Médicos</button>
+            <button class="boton-regresar-derecha" onclick="window.location.href='index.html'">Volver al menú</button>
+        </div>
+    </div>
+
+    <div class="pantalla-dividida">
+        <div class="bloque-residentes-acero">
+            <h2 class="subtitulo-bloque">Lista de Residentes</h2>
+            <div class="titulo-piso">Primer Piso</div>
+            <div class="lista-nombres"></div>
+            <div class="titulo-piso">Segundo Piso</div>
+            <div class="lista-nombres"></div>
+        </div>
+        <div class="bloque-blanco columna-ficha-datos" id="panel-ficha-central">
+            <h2 class="subtitulo-bloque">Ficha del Residente</h2>
+            <div class="sin-seleccion">Seleccione un residente de la lista para visualizar sus datos generales y médicos.</div>
+        </div>
+        <div class="bloque-blanco columna-kardex-detalle" id="panel-kardex-derecho">
+            <h2 class="subtitulo-bloque">Kárdex del Paciente</h2>
+            <div class="sin-seleccion">Seleccione un residente de la lista para abrir su kárdex clínico.</div>
+        </div>
+    </div>
+
+    <div class="panel-lateral-movil" id="panel-lateral-movil">
+        <h2 class="subtitulo-bloque">Lista de Residentes</h2>
+        <div class="titulo-piso">Primer Piso</div>
+        <div class="lista-nombres" id="lista-panel-1"></div>
+        <div class="titulo-piso">Segundo Piso</div>
+        <div class="lista-nombres" id="lista-panel-2"></div>
+    </div>
+    <button class="pestana-abrir-lista" id="pestana-lista" onclick="togglePanel()">☰ Residentes</button>
+    <div class="overlay-panel" id="overlay-panel" onclick="cerrarPanel()"></div>
+
+    <script>
+        const SUPABASE_URL = "https://xdalimxqwymjbxjlipts.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g";
+        const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let nombreResidenteSeleccionado = "";
+        let idResidenteSeleccionado = null;
+        const ORDEN_PRIMER_PISO = ['burela','paz','blanca','celso','adolfo','óscar','pedro','josé v','fernando','graciela'];
+        const ORDEN_SEGUNDO_PISO = ['carmen','irene','sara','miriam v','maritza','juana','norma','jaime','enrique','silvia','miriam s','ángela'];
+
+        function convertirDecimalAFraccion(valor) { if (!valor) return "0"; const num = parseFloat(valor); if (num === 0.5) return "1/2"; if (num === 0.25) return "1/4"; if (num === 0.75) return "3/4"; if (num === 0.125) return "1/8"; return num; }
+        function convertirNombreFormatoTitulo(n) { if (!n) return ""; return n.trim().toLowerCase().split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '); }
+        function capitalizarPrimeraLetra(c) { if (!c) return ""; return c.trim().charAt(0).toUpperCase() + c.trim().slice(1).toLowerCase(); }
+        function formatearPastillasHorarios(t) {
+            if (!t || t.trim() === "") return '<span class="tag-horario-ovalado horario-otro">No asignados</span>';
+            return t.split(',').map(f => { const l = f.trim().toLowerCase(); let c = 'horario-otro'; if (l.includes('desayuno')) c = 'horario-desayuno'; else if (l.includes('almuerzo')) c = 'horario-almuerzo'; else if (l.includes('lonche')) c = 'horario-lonche'; else if (l.includes('cena')) c = 'horario-cena'; return `<span class="tag-horario-ovalado ${c}">${capitalizarPrimeraLetra(f)}</span>`; }).join('');
+        }
+
+        document.addEventListener("DOMContentLoaded", () => { cargarListasPorPisos(); });
+
+        async function cargarListasPorPisos() {
+            const { data: residentes, error } = await clienteSupabase.from('residentes').select('id, nombre_completo, apodo, piso');
+            if (error) return;
+            const listaPrimerPiso = document.querySelectorAll('.lista-nombres')[0];
+            const listaSegundoPiso = document.querySelectorAll('.lista-nombres')[1];
+            listaPrimerPiso.innerHTML = ""; listaSegundoPiso.innerHTML = "";
+            let arr1 = [], arr2 = [];
+            residentes.forEach(res => { const apodo = res.apodo && res.apodo.trim() !== "" ? res.apodo.trim() : res.nombre_completo.trim(); const item = { id: res.id, nombre_completo: res.nombre_completo, apodo, piso: parseInt(res.piso) }; if (item.piso === 2) arr2.push(item); else arr1.push(item); });
+            arr1.sort((a,b) => { let iA = ORDEN_PRIMER_PISO.indexOf(a.apodo.toLowerCase()); let iB = ORDEN_PRIMER_PISO.indexOf(b.apodo.toLowerCase()); return (iA===-1?99:iA)-(iB===-1?99:iB); });
+            arr2.sort((a,b) => { let iA = ORDEN_SEGUNDO_PISO.indexOf(a.apodo.toLowerCase()); let iB = ORDEN_SEGUNDO_PISO.indexOf(b.apodo.toLowerCase()); return (iA===-1?99:iA)-(iB===-1?99:iB); });
+            arr1.forEach(res => { const html = `<div class="item-residente" data-id="${res.id}" data-nombre="${res.nombre_completo}" onclick="consultarResidenteReal(this,'${res.id}','${res.nombre_completo}')">${res.apodo}</div>`; listaPrimerPiso.innerHTML += html; const p1 = document.getElementById('lista-panel-1'); if (p1) p1.innerHTML += html; });
+            arr2.forEach(res => { const html = `<div class="item-residente" data-id="${res.id}" data-nombre="${res.nombre_completo}" onclick="consultarResidenteReal(this,'${res.id}','${res.nombre_completo}')">${res.apodo}</div>`; listaSegundoPiso.innerHTML += html; const p2 = document.getElementById('lista-panel-2'); if (p2) p2.innerHTML += html; });
+        }
+
+        async function consultarResidenteReal(elemento, idResidente, nombre) {
+            document.querySelectorAll('.item-residente').forEach(i => i.classList.remove('residente-activo'));
+            elemento.classList.add('residente-activo');
+            nombreResidenteSeleccionado = nombre;
+            idResidenteSeleccionado = idResidente;
+            if (window.innerWidth <= 768) { cerrarPanel(); setTimeout(() => { document.getElementById('panel-ficha-central').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 350); }
+            document.getElementById('panel-ficha-central').innerHTML = `<h2 class="subtitulo-bloque">Ficha del Residente</h2><div class="sin-seleccion">Cargando expediente...</div>`;
+            document.getElementById('panel-kardex-derecho').innerHTML = `<h2 class="subtitulo-bloque">Kárdex del Paciente</h2><div class="sin-seleccion">Cargando kárdex...</div>`;
+            try {
+                const { data: residente, error: errRes } = await clienteSupabase.from('residentes').select('*').eq('id', idResidente).single();
+                if (errRes) throw errRes;
+                let fechaFormateada = '-'; if (residente.fecha_nacimiento) { const p = residente.fecha_nacimiento.split('-'); if (p.length === 3) fechaFormateada = `${p[2]}/${p[1]}/${p[0]}`; }
+                const nombreBonito = convertirNombreFormatoTitulo(residente.nombre_completo);
+                document.getElementById('panel-ficha-central').innerHTML = `<h2 class="subtitulo-bloque">Ficha del Residente</h2><div class="grupo-info-ficha"><div class="perfil-cabecera"><h3 class="perfil-titulo-nombre">${nombreBonito}</h3></div>${residente.alergias ? `<div class="alerta-alergia-caja">⚠️ ALERGIAS: ${residente.alergias}</div>` : ''}<div class="dato-linea-inline"><span class="negrita-etiqueta-inline">DNI:</span><span class="valor-registro-fijo">${residente.dni_residente || '-'}</span></div><div class="fila-compartida-datos"><div class="dato-linea"><span class="negrita-etiqueta">Edad:</span><span class="valor-registro-fijo">${residente.edad ? residente.edad + ' años' : '-'}</span></div><div class="dato-linea" style="text-align:right;"><span class="negrita-etiqueta">Fecha de Nacimiento:</span><span class="valor-registro-fijo">${fechaFormateada}</span></div></div><div class="dato-linea"><span class="negrita-etiqueta">Diagnóstico Médico:</span><span class="valor-registro-fijo">${residente.diagnóstico || '-'}</span></div><div class="dato-linea"><span class="negrita-etiqueta">Nombre de Familiar Responsable:</span><span class="valor-registro-fijo">${residente.nombre_familiar_responsable || '-'}</span></div><div class="dato-linea"><span class="negrita-etiqueta">Teléfono del Familiar:</span><span class="valor-registro-fijo">${residente.teléfono_familiar_responsable || '-'}</span></div><button class="boton-inventario-pertenencias" onclick="irAInventarioPertenencias()">📦 Inventario de Pertenencias</button></div>`;
+                const { data: kardex, error: errKardex } = await clienteSupabase.from('medicamentos_residente').select(`id, gramos, unidad, dosis, numero_de_tabletas_mensuales, horarios, catalogo_maestro_medicamentos ( nombre_medicamento )`).eq('residente_id', idResidente);
+                if (errKardex) throw errKardex;
+                const panelKardex = document.getElementById('panel-kardex-derecho');
+                panelKardex.innerHTML = `<h2 class="subtitulo-bloque">Kárdex del Paciente</h2>`;
+                if (!kardex || kardex.length === 0) { panelKardex.innerHTML += `<div class="sin-seleccion">Este residente no tiene medicamentos registrados.</div>`; }
+                else { let html = `<div class="contenedor-lineas-kardex">`; kardex.forEach(item => { const nombreMed = item.catalogo_maestro_medicamentos?.nombre_medicamento || "Medicamento Desconocido"; const gramos = item.gramos ? ` ${item.gramos}` : ''; const unidad = item.unidad || ''; const dosis = convertirDecimalAFraccion(item.dosis); html += `<div class="linea-kardex-item"><div class="kardex-nombre-linea">💊 <span class="resaltado-dato">${nombreMed}${gramos} ${unidad}</span></div><div class="kardex-detalle-linea"><span class="etiqueta-kardex-fija">Dosis:</span> <span class="resaltado-dato">${dosis} tab.</span> &nbsp;&nbsp; <span class="etiqueta-kardex-fija">Tabletas al mes:</span> <span class="resaltado-dato">${item.numero_de_tabletas_mensuales || 0}</span></div><div class="nota-horario"><span class="etiqueta-kardex-fija">Horarios:</span> ${formatearPastillasHorarios(item.horarios)}</div></div>`; }); html += `</div>`; panelKardex.innerHTML += html; }
+            } catch (err) { document.getElementById('panel-ficha-central').innerHTML = `<h2 class="subtitulo-bloque">Ficha del Residente</h2><div class="sin-seleccion" style="color:#DC3545;">Error al cargar.</div>`; document.getElementById('panel-kardex-derecho').innerHTML = `<h2 class="subtitulo-bloque">Kárdex del Paciente</h2><div class="sin-seleccion" style="color:#DC3545;">Error al cargar.</div>`; }
+        }
+
+        function irAEventosMedicosConFiltro() { if (!idResidenteSeleccionado) { alert('Seleccione un residente primero.'); return; } window.location.href = 'eventos_medicos.html?id=' + encodeURIComponent(idResidenteSeleccionado) + '&nombre=' + encodeURIComponent(nombreResidenteSeleccionado); }
+        function irAInventarioPertenencias() { if (!nombreResidenteSeleccionado) return; window.location.href = 'inventario_pertenencias.html?residente=' + encodeURIComponent(nombreResidenteSeleccionado); }
+        function togglePanel() { const panel = document.getElementById('panel-lateral-movil'); const pestana = document.getElementById('pestana-lista'); const overlay = document.getElementById('overlay-panel'); const abierto = panel.classList.toggle('abierto'); pestana.classList.toggle('abierto', abierto); overlay.classList.toggle('visible', abierto); pestana.style.left = abierto ? Math.min(window.innerWidth * 0.75, 280) + 'px' : '0'; }
+        function cerrarPanel() { document.getElementById('panel-lateral-movil').classList.remove('abierto'); document.getElementById('pestana-lista').classList.remove('abierto'); document.getElementById('overlay-panel').classList.remove('visible'); document.getElementById('pestana-lista').style.left = '0'; }
+    </script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario - Refugio del Alba</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Quicksand', sans-serif; background-color: #F5F2EB; color: #2C425E; min-height: 100vh; }
+        
+        .barra-superior { position: sticky; top: 0; z-index: 1000; background-color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .texto-titulo-sup { font-family: 'Comfortaa', sans-serif; font-size: 22px; font-weight: 700; color: #2C425E; }
+        .boton-regresar { background-color: #466995; color: white; border: none; padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; text-transform: uppercase; }
+
+        .contenedor-layout { display: flex; flex-direction: row; justify-content: center; gap: 40px; padding: 20px; flex-wrap: wrap; }
+        .col-calendario { flex: 0 0 500px; order: 1; }
+        .col-eventos { flex: 0 0 400px; display: flex; flex-direction: column; gap: 20px; order: 2; }
+        
+        .almanaque-completo { background-color: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .mes-nav { display: flex; justify-content: space-between; align-items: center; font-size: 32px; font-weight: 700; margin-bottom: 10px; }
+
+        .fecha-seleccionada-wrap { display: flex; align-items: center; justify-content: center; font-family: 'Comfortaa', sans-serif; font-size: 14px; font-weight: 700; color: #466995; background: #EEF4F9; border-radius: 10px; padding: 7px 14px; margin-bottom: 16px; letter-spacing: 0.5px; }
+        .btn-mas-registro { display: none; }
+
+        .dias-semana-header { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: 700; margin-bottom: 10px; color: #8A9BA8; }
+
+        .cuadrigula-numeros { display: grid; grid-template-columns: repeat(7, 1fr); gap: 15px; }
+        .numero-dia { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: pointer; position: relative; font-size: 20px; border: 1px solid #E1D7C6; }
+        .dia-hoy { border: 2.5px solid #466995 !important; }
+        .dia-clicado { background-color: #466995 !important; color: white !important; }
+        .punto-normal  { background-color: #28a745; width: 8px; height: 8px; border-radius: 50%; position: absolute; bottom: 6px; }
+        .punto-urgente { background-color: #B22222; width: 8px; height: 8px; border-radius: 50%; position: absolute; bottom: 6px; }
+        
+        .bloque { background-color: white; border-radius: 20px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .subtitulo { font-family: 'Comfortaa', sans-serif; font-size: 12px; color: white; text-transform: uppercase; background-color: #2C425E; padding: 8px 16px; margin: -25px -25px 15px -25px; border-radius: 20px 20px 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .linea-evento { padding: 15px 0; border-bottom: 1px solid #E1D7C6; display: flex; gap: 10px; align-items: flex-start; }
+        .bolita-lista { min-width: 8px; height: 8px; background-color: #28a745; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+        .bolita-lista.urgente { background-color: #B22222; }
+        .texto-evento-normal { font-size: 16px; color: #2C425E; line-height: 1.6; }
+        .texto-evento-importante { font-size: 16px; color: #8B0000; font-weight: 800; line-height: 1.6; }
+        .horario-tag { font-size: 14px; font-weight: 700; color: #8A9BA8; text-transform: uppercase; margin-top: 5px; }
+
+        .input-caja { width: 100%; padding: 14px; margin-bottom: 15px; border: 1px solid #E1D7C6; border-radius: 10px; box-sizing: border-box; font-family: 'Quicksand', sans-serif; font-size: 16px; }
+        .check-container { font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 8px; margin: 5px 0 15px 0; color: #8B0000; font-size: 14px; }
+        .check-container input { width: 16px; height: 16px; cursor: pointer; accent-color: #8B0000; }
+        .boton-registrar { background-color: #466995; color: white; border: none; padding: 16px; border-radius: 10px; width: 100%; font-weight: 700; cursor: pointer; margin-top: 5px; font-family: 'Quicksand', sans-serif; font-size: 14px; }
+
+        @media (max-width: 768px) {
+            .contenedor-layout { flex-direction: column; align-items: stretch; padding: 10px; gap: 12px; }
+            .col-calendario { flex: unset; width: 100%; box-sizing: border-box; }
+            .col-eventos { flex: unset; width: 100%; box-sizing: border-box; }
+            .barra-superior { padding: 10px 14px; }
+            .texto-titulo-sup { font-size: 16px; }
+            .boton-regresar { padding: 7px 12px; font-size: 11px; }
+            .almanaque-completo { padding: 14px 10px; border-radius: 14px; }
+            .mes-nav { font-size: 22px; margin-bottom: 8px; }
+
+            .fecha-seleccionada-wrap { justify-content: center; padding: 7px 14px; font-size: 13px; }
+            .fecha-seleccionada-wrap #fecha-seleccionada-display { text-align: center; width: 100%; }
+
+            .btn-mas-registro { display: flex; align-items: center; justify-content: center; background: #466995; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 24px; font-weight: 900; line-height: 1; cursor: pointer; flex-shrink: 0; padding: 0; box-shadow: 0 2px 6px rgba(70,105,149,0.4); }
+
+            /* ✅ Círculos más grandes y número centrado arriba, punto abajo sin tapar */
+            .cuadrigula-numeros { gap: 4px; }
+            .numero-dia {
+                width: 42px;
+                height: 42px;
+                font-size: 13px;
+                /* Número sube, deja espacio abajo para el punto */
+                align-items: flex-start;
+                padding-top: 7px;
+                box-sizing: border-box;
+            }
+            .dias-semana-header { font-size: 11px; }
+
+            /* ✅ Punto pequeño pegado al fondo, centrado, nunca tapa el número */
+            .punto-normal {
+                width: 5px;
+                height: 5px;
+                bottom: 4px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            .punto-urgente {
+                width: 5px;
+                height: 5px;
+                bottom: 4px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .bloque { padding: 16px; border-radius: 14px; }
+            /* ✅ Prevent auto-zoom on input focus */
+            .input-caja { font-size: 16px !important; }
+            .subtitulo { margin: -16px -16px 15px -16px; border-radius: 14px 14px 0 0; }
+            .subtitulo { font-size: 15px; }
+            .texto-evento-normal { font-size: 14px; }
+            .texto-evento-importante { font-size: 14px; }
+            .horario-tag { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="barra-superior">
+        <div class="texto-titulo-sup">Calendario de Eventos</div>
+        <button class="boton-regresar" onclick="window.location.replace('index.html')">Volver al menú</button>
+    </div>
+
+    <div class="contenedor-layout">
+        <div class="col-calendario">
+            <div class="almanaque-completo">
+                <div class="mes-nav">
+                    <span style="cursor:pointer" onclick="cambiarMes(-1)">‹</span>
+                    <span id="mes-titulo"></span>
+                    <span style="cursor:pointer" onclick="cambiarMes(1)">›</span>
+                </div>
+                <div class="fecha-seleccionada-wrap">
+                    <span id="fecha-seleccionada-display"></span>
+                    <button class="btn-mas-registro" onclick="irARegistro()" title="Registrar evento">+</button>
+                </div>
+                <div class="dias-semana-header">
+                    <div>LU</div><div>MA</div><div>MI</div><div>JU</div><div>VI</div><div>SÁ</div><div>DO</div>
+                </div>
+                <div class="cuadrigula-numeros" id="cuadrilla"></div>
+            </div>
+        </div>
+
+        <div class="col-eventos">
+            <div class="bloque bloque-historial">
+                <h3 id="fecha-actual-texto" class="subtitulo">EVENTOS DEL DÍA</h3>
+                <div id="lista-eventos"></div>
+            </div>
+            <div class="bloque bloque-registro" id="bloque-registro">
+                <h3 class="subtitulo" id="titulo-registrar-evento">REGISTRAR EVENTO</h3>
+                <input type="text" id="input-evento" class="input-caja" placeholder="Descripción del evento">
+                <input type="text" id="input-hora" class="input-caja" placeholder="Horario (opcional)">
+                <label class="check-container">
+                    <input type="checkbox" id="check-importante"> ⚠️ EVENTO IMPORTANTE
+                </label>
+                <button class="boton-registrar" onclick="guardar()">Guardar Evento</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://xdalimxqwymjbxjlipts.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkYWxpbXhxd3ltamJ4amxpcHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMjgzNDIsImV4cCI6MjA5NDcwNDM0Mn0.dGC9sAo8rGHb3V8_G4gF-oTVtWrv_KNhEROf_-NG59g";
+        const cliente = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let diaSel = new Date().getDate(), mesSel = new Date().getMonth(), anioSel = new Date().getFullYear();
+        const meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+        const diasSemana = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+
+        function actualizarDisplayFecha() {
+            const nombreDia = diasSemana[new Date(anioSel, mesSel, diaSel).getDay()];
+            // En móvil: mes con primera letra mayúscula, resto minúscula
+            const nombreMes = meses[mesSel].charAt(0).toUpperCase() + meses[mesSel].slice(1).toLowerCase();
+            document.getElementById('fecha-seleccionada-display').innerText =
+                `${nombreDia} ${diaSel} de ${nombreMes}`;
+        }
+
+        function irARegistro() {
+            document.getElementById('bloque-registro').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function dibujar() {
+            const grid = document.getElementById('cuadrilla');
+            grid.innerHTML = "";
+            document.getElementById('mes-titulo').innerText = `${meses[mesSel].toUpperCase()} ${anioSel}`;
+            actualizarDisplayFecha();
+
+            const { data: eventos } = await cliente.from('calendario').select('fecha, estado');
+            
+            const primerDia = new Date(anioSel, mesSel, 1).getDay();
+            const offset = (primerDia === 0) ? 6 : primerDia - 1;
+            for(let i=0; i<offset; i++) grid.appendChild(document.createElement('div'));
+
+            const diasMes = new Date(anioSel, mesSel + 1, 0).getDate();
+            for(let i=1; i<=diasMes; i++) {
+                const div = document.createElement('div');
+                const hoy = new Date();
+                const esHoy = (i === hoy.getDate() && mesSel === hoy.getMonth() && anioSel === hoy.getFullYear());
+                div.className = 'numero-dia' + (i === diaSel ? ' dia-clicado' : '') + (esHoy ? ' dia-hoy' : '');
+                div.innerText = i;
+                const f = `${anioSel}-${(mesSel+1).toString().padStart(2,'0')}-${i.toString().padStart(2,'0')}`;
+                const evDia = eventos?.filter(e => e.fecha === f);
+                if (evDia?.length > 0) {
+                    const dot = document.createElement('div');
+                    dot.className = evDia.some(e => e.estado === 'Importante') ? 'punto-urgente' : 'punto-normal';
+                    div.appendChild(dot);
+                }
+                div.onclick = () => { diaSel = i; dibujar(); cargar(); };
+                grid.appendChild(div);
+            }
+        }
+
+        async function cargar() {
+            const fecha = `${anioSel}-${(mesSel+1).toString().padStart(2,'0')}-${diaSel.toString().padStart(2,'0')}`;
+            const nomDia = diasSemana[new Date(anioSel, mesSel, diaSel).getDay()];
+            document.getElementById('fecha-actual-texto').innerText = `Eventos del ${nomDia} ${diaSel} de ${meses[mesSel]}`;
+            // ✅ Actualizar título de registrar evento con el día seleccionado
+            const nombreMes = meses[mesSel].charAt(0).toUpperCase() + meses[mesSel].slice(1).toLowerCase();
+            document.getElementById('titulo-registrar-evento').innerText = `Registrar Evento ${nomDia} ${diaSel} de ${nombreMes}`;
+            const { data } = await cliente.from('calendario').select('*').eq('fecha', fecha);
+            const lista = document.getElementById('lista-eventos');
+            lista.innerHTML = !data || data.length === 0
+                ? '<p style="font-weight:300; font-size:14px; color:#8A9BA8; font-style:italic;">No se ha registrado ningún evento este día</p>'
+                : '';
+            data?.forEach(i => {
+                const esImportante = i.estado === 'Importante';
+                const div = document.createElement('div');
+                div.className = 'linea-evento';
+                const bolita = document.createElement('div');
+                bolita.className = 'bolita-lista' + (esImportante ? ' urgente' : '');
+                const textoDiv = document.createElement('div');
+                textoDiv.className = esImportante ? 'texto-evento-importante' : 'texto-evento-normal';
+                textoDiv.innerHTML = i.evento;
+                if (i.hora) {
+                    textoDiv.innerHTML += `<div class="horario-tag">🕐 HORARIO: ${i.hora}</div>`;
+                }
+                div.appendChild(bolita);
+                div.appendChild(textoDiv);
+                lista.appendChild(div);
+            });
+        }
+
+        function cambiarMes(dir) {
+            mesSel += dir;
+            if(mesSel > 11) { mesSel = 0; anioSel++; }
+            if(mesSel < 0) { mesSel = 11; anioSel--; }
+            dibujar(); cargar();
+        }
+
+        async function guardar() {
+            const evento = document.getElementById('input-evento').value.trim();
+            if (!evento) return alert("Escribe la descripción del evento");
+            const fecha = `${anioSel}-${(mesSel+1).toString().padStart(2,'0')}-${diaSel.toString().padStart(2,'0')}`;
+            await cliente.from('calendario').insert([{ 
+                fecha,
+                hora: document.getElementById('input-hora').value,
+                evento,
+                estado: document.getElementById('check-importante').checked ? 'Importante' : null 
+            }]);
+            document.getElementById('input-hora').value = "";
+            document.getElementById('input-evento').value = "";
+            document.getElementById('check-importante').checked = false;
+            cargar(); dibujar();
+        }
+
+        dibujar(); cargar();
+    </script>
+</body>
+</html>
